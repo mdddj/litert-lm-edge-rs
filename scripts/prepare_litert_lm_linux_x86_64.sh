@@ -33,6 +33,13 @@ if ! command -v patchelf >/dev/null 2>&1; then
   exit 1
 fi
 
+if command -v clang-18 >/dev/null 2>&1; then
+  LLVM_BIN_DIR="$(dirname "$(command -v clang-18)")"
+  export PATH="${LLVM_BIN_DIR}:${PATH}"
+fi
+export CC="${CC:-clang}"
+export CXX="${CXX:-clang++}"
+
 enable_engine_cpu_alwayslink() {
   local build_file="$1"
   python3 - "$build_file" <<'PY'
@@ -91,6 +98,11 @@ EOF
   "${BAZEL[@]}" "--output_user_root=${BAZEL_OUTPUT_USER_ROOT}" \
     build //litert_lm_c_api_vendor:litert_lm_c_api_vendor \
     --config=linux \
+    "--action_env=PATH=${PATH}" \
+    "--action_env=CC=${CC}" \
+    "--action_env=CXX=${CXX}" \
+    "--repo_env=CC=${CC}" \
+    "--repo_env=CXX=${CXX}" \
     "--disk_cache=${BAZEL_DISK_CACHE}" \
     "--repository_cache=${BAZEL_REPOSITORY_CACHE}"
 )
@@ -123,7 +135,7 @@ LiteRT-LM tag: ${TAG}
 LiteRT-LM commit: ${COMMIT}
 Target: x86_64-unknown-linux-gnu
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
-Bazel command: ${BAZEL[*]} --output_user_root=${BAZEL_OUTPUT_USER_ROOT} build //litert_lm_c_api_vendor:litert_lm_c_api_vendor --config=linux --disk_cache=${BAZEL_DISK_CACHE} --repository_cache=${BAZEL_REPOSITORY_CACHE}
+Bazel command: ${BAZEL[*]} --output_user_root=${BAZEL_OUTPUT_USER_ROOT} build //litert_lm_c_api_vendor:litert_lm_c_api_vendor --config=linux --action_env=PATH --action_env=CC=${CC} --action_env=CXX=${CXX} --repo_env=CC=${CC} --repo_env=CXX=${CXX} --disk_cache=${BAZEL_DISK_CACHE} --repository_cache=${BAZEL_REPOSITORY_CACHE}
 Library: ${LIB_NAME}
 Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 EOF

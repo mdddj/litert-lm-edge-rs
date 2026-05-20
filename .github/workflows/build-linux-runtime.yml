@@ -35,7 +35,16 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang lld patchelf
+          sudo apt-get install -y lsb-release patchelf wget
+          wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 18
+          sudo apt-get install -y clang-18 lld-18
+          sudo ln -sf /usr/bin/clang-18 /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-18 /usr/local/bin/clang++
+          sudo ln -sf /usr/bin/lld-18 /usr/local/bin/lld
+          sudo ln -sf /usr/bin/ld.lld-18 /usr/local/bin/ld.lld
+          clang --version
           curl -fsSL -o /tmp/bazelisk-bin \
             https://github.com/bazelbuild/bazelisk/releases/download/v1.25.0/bazelisk-linux-amd64
           sudo install -m 755 /tmp/bazelisk-bin /usr/local/bin/bazelisk
