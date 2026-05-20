@@ -1,0 +1,32 @@
+name: Build Windows LiteRT-LM Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      litert_lm_tag:
+        description: LiteRT-LM tag to build
+        required: true
+        default: v0.12.0
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Bazelisk
+        shell: pwsh
+        run: choco install bazelisk -y
+
+      - name: Prepare Windows runtime
+        shell: pwsh
+        env:
+          LITERT_LM_TAG: ${{ inputs.litert_lm_tag }}
+        run: scripts/prepare_litert_lm_windows_x86_64.ps1
+
+      - name: Upload runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: litert-lm-edge-windows-x86_64-runtime
+          path: litert-lm-edge-sys/vendor/windows-x86_64

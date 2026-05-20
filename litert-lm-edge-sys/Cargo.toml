@@ -1,0 +1,23 @@
+[package]
+name = "litert-lm-edge-sys"
+description = "Raw FFI bindings for the LiteRT-LM C API."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+links = "litert_lm_c_api"
+build = "build.rs"
+
+[features]
+default = ["vendor-darwin-arm64", "vendor-windows-x86_64"]
+generate-bindings = ["dep:bindgen"]
+system = []
+vendor-darwin-arm64 = []
+vendor-windows-x86_64 = []
+
+[build-dependencies]
+bindgen = { version = "0.71", optional = true }
+
+[lints]
+workspace = true

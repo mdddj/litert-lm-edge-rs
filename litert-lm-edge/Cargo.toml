@@ -1,0 +1,27 @@
+[package]
+name = "litert-lm-edge"
+description = "Safe Rust wrapper for LiteRT-LM text generation and streaming."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+base64 = "0.22"
+litert-lm-edge-sys.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[features]
+default = ["vendor-darwin-arm64", "vendor-windows-x86_64"]
+generate-bindings = ["litert-lm-edge-sys/generate-bindings"]
+system = ["litert-lm-edge-sys/system"]
+vendor-darwin-arm64 = ["litert-lm-edge-sys/vendor-darwin-arm64"]
+vendor-windows-x86_64 = ["litert-lm-edge-sys/vendor-windows-x86_64"]
+
+[dev-dependencies]
+
+[lints]
+workspace = true
