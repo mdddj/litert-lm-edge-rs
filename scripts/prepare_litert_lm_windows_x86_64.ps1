@@ -21,6 +21,14 @@ if (-not $Bazel) {
     throw "bazelisk or bazel is required to build LiteRT-LM."
 }
 
+# GitHub's Windows runners preinstall Android SDK/NDK paths. LiteRT-LM's
+# WORKSPACE instantiates android_ndk_repository even for this Windows CPU build,
+# and the runner path can trip Bazel's repository symlink checks. Clear Android
+# discovery variables so the repository stays inert for this target.
+foreach ($Name in @("ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_NDK_HOME", "ANDROID_NDK_ROOT")) {
+    Remove-Item "Env:$Name" -ErrorAction SilentlyContinue
+}
+
 New-Item -ItemType Directory -Force -Path $CacheDir, $VendorDir | Out-Null
 
 if (Test-Path (Join-Path $SrcDir ".git")) {

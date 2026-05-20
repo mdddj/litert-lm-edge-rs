@@ -23,6 +23,10 @@ jobs:
         shell: pwsh
         env:
           LITERT_LM_TAG: ${{ inputs.litert_lm_tag }}
+          ANDROID_HOME: ""
+          ANDROID_SDK_ROOT: ""
+          ANDROID_NDK_HOME: ""
+          ANDROID_NDK_ROOT: ""
         run: scripts/prepare_litert_lm_windows_x86_64.ps1
 
       - name: Upload runtime artifact
