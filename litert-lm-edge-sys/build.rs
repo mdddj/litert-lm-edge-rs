@@ -21,10 +21,11 @@ fn main() {
 fn validate_link_mode() {
     if !cfg!(feature = "system")
         && !cfg!(feature = "vendor-darwin-arm64")
+        && !cfg!(feature = "vendor-linux-x86_64")
         && !cfg!(feature = "vendor-windows-x86_64")
     {
         panic!(
-            "enable a LiteRT-LM link mode: vendor-darwin-arm64, vendor-windows-x86_64, or system"
+            "enable a LiteRT-LM link mode: vendor-darwin-arm64, vendor-linux-x86_64, vendor-windows-x86_64, or system"
         );
     }
 }
@@ -38,6 +39,8 @@ fn link_runtime() {
     let target = env::var("TARGET").expect("Cargo sets TARGET");
     if target == "aarch64-apple-darwin" && cfg!(feature = "vendor-darwin-arm64") {
         link_vendor_darwin_arm64();
+    } else if target == "x86_64-unknown-linux-gnu" && cfg!(feature = "vendor-linux-x86_64") {
+        link_vendor_linux_x86_64();
     } else if target == "x86_64-pc-windows-msvc" && cfg!(feature = "vendor-windows-x86_64") {
         link_vendor_windows_x86_64();
     } else {
@@ -83,6 +86,33 @@ fn link_vendor_darwin_arm64() {
     copy_vendor_runtimes_to_target_dirs(&vendor_dir);
     println!("cargo:rustc-link-search=native={}", vendor_dir.display());
     println!("cargo:rustc-link-lib=dylib=litert_lm_c_api");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor_dir.display());
+}
+
+fn link_vendor_linux_x86_64() {
+    let target = env::var("TARGET").expect("Cargo sets TARGET");
+    if target != "x86_64-unknown-linux-gnu" {
+        panic!(
+            "the bundled Linux LiteRT-LM runtime supports only x86_64-unknown-linux-gnu; \
+             enable a matching vendor feature or use system mode for {target}"
+        );
+    }
+
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let vendor_dir = manifest_dir.join("vendor").join("linux-x86_64");
+    let so = vendor_dir.join("liblitert_lm_c_api.so");
+    if !so.is_file() {
+        panic!(
+            "missing bundled Linux LiteRT-LM runtime at {}; run scripts/prepare_litert_lm_linux_x86_64.sh on Linux",
+            so.display()
+        );
+    }
+
+    println!("cargo:rerun-if-changed={}", so.display());
+    copy_vendor_runtimes_to_target_dirs(&vendor_dir);
+    println!("cargo:rustc-link-search=native={}", vendor_dir.display());
+    println!("cargo:rustc-link-lib=dylib=litert_lm_c_api");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor_dir.display());
 }
 
@@ -134,7 +164,7 @@ fn copy_vendor_runtimes_to_target_dirs(vendor_dir: &Path) {
                 .unwrap_or_else(|error| panic!("failed to read vendor entry: {error}"))
                 .path();
             let extension = path.extension().and_then(|extension| extension.to_str());
-            if matches!(extension, Some("dylib" | "dll")) {
+            if matches!(extension, Some("dylib" | "dll" | "so")) {
                 let file_name = path
                     .file_name()
                     .unwrap_or_else(|| panic!("vendor dylib has no file name: {}", path.display()));

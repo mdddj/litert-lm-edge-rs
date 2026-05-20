@@ -1,0 +1,63 @@
+name: Build Linux LiteRT-LM Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      litert_lm_tag:
+        description: LiteRT-LM tag to build
+        required: true
+        default: v0.12.0
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    env:
+      LITERT_LM_BUILD_CACHE: /tmp/llm
+      BAZELISK_HOME: /tmp/bazelisk
+      BAZEL_OUTPUT_USER_ROOT: /tmp/bzl
+      BAZEL_DISK_CACHE: /tmp/bazel-disk-cache
+      BAZEL_REPOSITORY_CACHE: /tmp/bazel-repository-cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /tmp/bazel-disk-cache
+            /tmp/bazel-repository-cache
+          key: litert-lm-linux-bazel-${{ inputs.litert_lm_tag }}-${{ github.run_id }}
+          restore-keys: |
+            litert-lm-linux-bazel-${{ inputs.litert_lm_tag }}-
+
+      - name: Install build tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld patchelf
+          curl -fsSL -o /usr/local/bin/bazelisk \
+            https://github.com/bazelbuild/bazelisk/releases/download/v1.25.0/bazelisk-linux-amd64
+          sudo chmod +x /usr/local/bin/bazelisk
+
+      - name: Prepare Linux runtime
+        shell: bash
+        env:
+          LITERT_LM_TAG: ${{ inputs.litert_lm_tag }}
+        run: scripts/prepare_litert_lm_linux_x86_64.sh
+
+      - name: Upload runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: litert-lm-edge-linux-x86_64-runtime
+          path: litert-lm-edge-sys/vendor/linux-x86_64
+
+      - name: Save Bazel cache
+        if: always()
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: |
+            /tmp/bazel-disk-cache
+            /tmp/bazel-repository-cache
+          key: litert-lm-linux-bazel-${{ inputs.litert_lm_tag }}-${{ github.run_id }}

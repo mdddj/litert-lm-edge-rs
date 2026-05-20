@@ -15,10 +15,15 @@ serde_json = "1"
 thiserror = "2"
 
 [features]
-default = ["vendor-darwin-arm64", "vendor-windows-x86_64"]
+default = [
+    "vendor-darwin-arm64",
+    "vendor-linux-x86_64",
+    "vendor-windows-x86_64",
+]
 generate-bindings = ["litert-lm-edge-sys/generate-bindings"]
 system = ["litert-lm-edge-sys/system"]
 vendor-darwin-arm64 = ["litert-lm-edge-sys/vendor-darwin-arm64"]
+vendor-linux-x86_64 = ["litert-lm-edge-sys/vendor-linux-x86_64"]
 vendor-windows-x86_64 = ["litert-lm-edge-sys/vendor-windows-x86_64"]
 
 [dev-dependencies]

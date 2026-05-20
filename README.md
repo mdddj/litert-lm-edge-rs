@@ -9,33 +9,26 @@ Rust bindings for the LiteRT-LM C API. This workspace binds the stable C ABI in
 - `litert-lm-edge`: safe wrapper for engine/session generation, streaming,
   multimodal inputs, conversations, and tool calling.
 
-## Default Native Runtime
+## Default Native Runtimes
 
-The default build links a bundled Apple Silicon macOS runtime from:
+The default build links bundled native runtimes for Apple Silicon macOS, Linux
+x86_64 GNU, and Windows x86_64 MSVC:
 
 ```text
 litert-lm-edge-sys/vendor/darwin-arm64/liblitert_lm_c_api.dylib
-```
-
-That means Apple Silicon Mac users do not need `LITERT_LM_LIB_DIR`,
-`LITERT_LM_LINK_LIB`, Bazel, or a LiteRT-LM source checkout. They only need a
-`.litertlm` model file at runtime.
-
-The bundled runtime targets `aarch64-apple-darwin` and is built from
-`google-ai-edge/LiteRT-LM` `v0.12.0` with the CPU-only C API target. GPU, Metal,
-NPU, vision, and audio settings are exposed in Rust, but the bundled runtime is
-intentionally CPU-first. Use `system` mode for a custom native build.
-
-Windows x86_64 MSVC is supported once a Windows vendor runtime has been built
-and copied into:
-
-```text
+litert-lm-edge-sys/vendor/linux-x86_64/liblitert_lm_c_api.so
 litert-lm-edge-sys/vendor/windows-x86_64/litert_lm_c_api.dll
 litert-lm-edge-sys/vendor/windows-x86_64/litert_lm_c_api.lib
 ```
 
-After the Windows vendor runtime exists, Windows users can use the default
-features too.
+That means users on those targets do not need `LITERT_LM_LIB_DIR`,
+`LITERT_LM_LINK_LIB`, Bazel, or a LiteRT-LM source checkout. They only need a
+`.litertlm` model file at runtime. Other targets should use `system` mode.
+
+The bundled runtimes are built from `google-ai-edge/LiteRT-LM` `v0.12.0` with
+the CPU-only C API target. GPU, Metal, NPU, vision, and audio settings are
+exposed in Rust, but the bundled runtimes are intentionally CPU-first. Use
+`system` mode for a custom native build.
 
 ## Build Modes
 
@@ -97,6 +90,22 @@ There is also a manual GitHub Actions workflow:
 Run it from GitHub, download the `litert-lm-edge-windows-x86_64-runtime`
 artifact, and copy its contents into
 `litert-lm-edge-sys/vendor/windows-x86_64/`.
+
+The Linux x86_64 GNU runtime must be built on Linux x86_64:
+
+```bash
+scripts/prepare_litert_lm_linux_x86_64.sh
+```
+
+There is also a manual GitHub Actions workflow:
+
+```text
+.github/workflows/build-linux-runtime.yml
+```
+
+Run it from GitHub, download the `litert-lm-edge-linux-x86_64-runtime`
+artifact, and copy its contents into
+`litert-lm-edge-sys/vendor/linux-x86_64/`.
 
 ## Examples
 
