@@ -2,19 +2,17 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Rust bindings for the LiteRT-LM C API. This workspace binds the stable C ABI in
-`c/engine.h`, not the C++ classes.
+LiteRT-LM C API 的 Rust 绑定。这个 workspace 绑定的是 `c/engine.h`
+里稳定的 C ABI，不直接绑定 C++ 类。
 
 ## Crates
 
-- `litert-lm-edge-sys`: raw unsafe FFI bindings and native library linking.
-- `litert-lm-edge`: safe wrapper for engine/session generation, streaming,
-  multimodal inputs, conversations, and tool calling.
+- `litert-lm-edge-sys`：原始 unsafe FFI 绑定和 native 库链接。
+- `litert-lm-edge`：安全封装，支持 engine/session 生成、流式输出、多模态输入、conversation 和工具调用。
 
-## Default Native Runtimes
+## 默认 Native Runtime
 
-The default build links bundled native runtimes for Apple Silicon macOS, Linux
-x86_64 GNU, and Windows x86_64 MSVC:
+默认构建会链接已经打包好的 native runtime，覆盖 Apple Silicon macOS、Linux x86_64 GNU 和 Windows x86_64 MSVC：
 
 ```text
 litert-lm-edge-sys/vendor/darwin-arm64/liblitert_lm_c_api.dylib
@@ -23,25 +21,20 @@ litert-lm-edge-sys/vendor/windows-x86_64/litert_lm_c_api.dll
 litert-lm-edge-sys/vendor/windows-x86_64/litert_lm_c_api.lib
 ```
 
-That means users on those targets do not need `LITERT_LM_LIB_DIR`,
-`LITERT_LM_LINK_LIB`, Bazel, or a LiteRT-LM source checkout. They only need a
-`.litertlm` model file at runtime. Other targets should use `system` mode.
+这些目标平台上的使用者不需要设置 `LITERT_LM_LIB_DIR`、`LITERT_LM_LINK_LIB`，也不需要安装 Bazel 或下载 LiteRT-LM 源码。运行时只需要提供 `.litertlm` 模型文件。其他平台需要使用 `system` 模式。
 
-The bundled runtimes are built from `google-ai-edge/LiteRT-LM` `v0.12.0` with
-the CPU-only C API target. GPU, Metal, NPU, vision, and audio settings are
-exposed in Rust, but the bundled runtimes are intentionally CPU-first. Use
-`system` mode for a custom native build.
+这些打包 runtime 来自 `google-ai-edge/LiteRT-LM` `v0.12.0`，构建目标是 CPU-only C API。Rust API 暴露了 GPU、Metal、NPU、vision 和 audio 相关设置，但默认打包 runtime 以 CPU 优先。需要自定义 accelerator 时，请使用 `system` 模式链接自己的 native build。
 
-## Build Modes
+## 构建模式
 
-Default bundled runtime:
+默认打包 runtime：
 
 ```bash
 cargo check --workspace
 cargo run -p litert-lm-edge --example simple_generate -- /path/to/model.litertlm "你好"
 ```
 
-System runtime for custom LiteRT-LM builds or other platforms:
+自定义 LiteRT-LM native build 或其他平台使用 `system` 模式：
 
 ```bash
 export LITERT_LM_LIB_DIR=/path/to/native/lib
@@ -50,75 +43,68 @@ export LITERT_LM_LINK_KIND=dylib
 cargo check --workspace --no-default-features --features system
 ```
 
-Windows bundled runtime:
+Windows 打包 runtime：
 
 ```powershell
 cargo check --workspace
 cargo run -p litert-lm-edge --example simple_generate -- C:\path\to\model.litertlm "hello"
 ```
 
-Regenerate bindgen bindings from a local LiteRT-LM checkout:
+从本地 LiteRT-LM checkout 重新生成 bindgen 绑定：
 
 ```bash
 export LITERT_LM_ROOT=/path/to/LiteRT-LM
 cargo check -p litert-lm-edge-sys --features generate-bindings
 ```
 
-## Preparing The Bundled Runtime
+## 准备打包 Runtime
 
-The bundled runtime can be rebuilt on Apple Silicon macOS:
+Apple Silicon macOS 上可以重新构建打包 runtime：
 
 ```bash
 scripts/prepare_litert_lm_darwin_arm64.sh
 ```
 
-The script downloads LiteRT-LM `v0.12.0` into `.litert-lm-build/`, builds a
-shared CPU C API library with Bazel/Bazelisk, copies it into
-`litert-lm-edge-sys/vendor/darwin-arm64/`, and writes `VERSION` plus
-`SHA256SUMS`.
+脚本会把 LiteRT-LM `v0.12.0` 下载到 `.litert-lm-build/`，用 Bazel/Bazelisk 构建共享 CPU C API 库，把产物复制到 `litert-lm-edge-sys/vendor/darwin-arm64/`，并写入 `VERSION` 和 `SHA256SUMS`。
 
-The Windows runtime must be built on Windows x86_64 with MSVC Build Tools:
+Windows runtime 必须在 Windows x86_64 和 MSVC Build Tools 环境中构建：
 
 ```powershell
 scripts\prepare_litert_lm_windows_x86_64.ps1
 ```
 
-There is also a manual GitHub Actions workflow:
+仓库也提供了手动触发的 GitHub Actions workflow：
 
 ```text
 .github/workflows/build-windows-runtime.yml
 ```
 
-Run it from GitHub, download the `litert-lm-edge-windows-x86_64-runtime`
-artifact, and copy its contents into
-`litert-lm-edge-sys/vendor/windows-x86_64/`.
+在 GitHub 上运行它，下载 `litert-lm-edge-windows-x86_64-runtime` artifact，然后把内容复制到 `litert-lm-edge-sys/vendor/windows-x86_64/`。
 
-The Linux x86_64 GNU runtime must be built on Linux x86_64:
+Linux x86_64 GNU runtime 必须在 Linux x86_64 上构建：
 
 ```bash
 scripts/prepare_litert_lm_linux_x86_64.sh
 ```
 
-There is also a manual GitHub Actions workflow:
+仓库也提供了手动触发的 GitHub Actions workflow：
 
 ```text
 .github/workflows/build-linux-runtime.yml
 ```
 
-Run it from GitHub, download the `litert-lm-edge-linux-x86_64-runtime`
-artifact, and copy its contents into
-`litert-lm-edge-sys/vendor/linux-x86_64/`.
+在 GitHub 上运行它，下载 `litert-lm-edge-linux-x86_64-runtime` artifact，然后把内容复制到 `litert-lm-edge-sys/vendor/linux-x86_64/`。
 
-## Usage
+## 使用方式
 
-Add the safe wrapper crate to an application:
+在应用里添加 safe wrapper crate：
 
 ```toml
 [dependencies]
 litert-lm-edge = { git = "https://github.com/mdddj/litert-lm-edge-rs" }
 ```
 
-Tool calling and raw JSON examples also use `serde_json`:
+工具调用和 raw JSON 示例还需要 `serde_json`：
 
 ```toml
 [dependencies]
@@ -126,22 +112,20 @@ litert-lm-edge = { git = "https://github.com/mdddj/litert-lm-edge-rs" }
 serde_json = "1"
 ```
 
-For local development against this workspace:
+如果在本地直接依赖这个 workspace：
 
 ```toml
 [dependencies]
 litert-lm-edge = { path = "/path/to/litert-lm-edge-rs/litert-lm-edge" }
 ```
 
-The default features use the bundled native runtime on Apple Silicon macOS,
-Linux x86_64 GNU, and Windows x86_64 MSVC. A `.litertlm` model file is still
-required at runtime:
+默认 features 会在 Apple Silicon macOS、Linux x86_64 GNU 和 Windows x86_64 MSVC 上使用打包 runtime。运行时仍然需要 `.litertlm` 模型文件：
 
 ```bash
 MODEL=/path/to/model.litertlm
 ```
 
-### Text Generation
+### 文本生成
 
 ```rust
 use litert_lm_edge::{Backend, Engine, SessionConfig};
@@ -159,7 +143,7 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-### Streaming Text
+### 流式文本
 
 ```rust
 use litert_lm_edge::{Backend, Engine, SessionConfig, StreamEvent};
@@ -188,7 +172,7 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-### Session Options
+### Session 配置
 
 ```rust
 use litert_lm_edge::{
@@ -219,7 +203,7 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-### Engine Options
+### Engine 配置
 
 ```rust
 use litert_lm_edge::{Backend, Engine, SessionConfig};
@@ -244,8 +228,7 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-The bundled runtimes are CPU-first. `Backend::Gpu` and custom backends are
-available for native runtimes built with the matching accelerator support:
+默认打包 runtime 是 CPU-first。`Backend::Gpu` 和自定义 backend 可以用于带有对应 accelerator 支持的 native runtime：
 
 ```rust
 use litert_lm_edge::{Backend, Engine};
@@ -262,10 +245,9 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-### Multimodal Session API
+### 多模态 Session API
 
-Use `generate_content` when a prompt contains text, images, or audio. File
-inputs are read into owned bytes before the native call.
+当 prompt 包含文本、图片或音频时，使用 `generate_content`。文件输入会先读取成 owned bytes，再传给 native 调用。
 
 ```rust
 use litert_lm_edge::{Backend, Engine, InputData, SessionConfig};
@@ -290,7 +272,7 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-Image and audio bytes can also be passed directly:
+也可以直接传图片和音频 bytes：
 
 ```rust
 use litert_lm_edge::{Backend, Engine, InputData, SessionConfig};
@@ -320,7 +302,7 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-The same multimodal input format supports streaming:
+同样的多模态输入格式也支持流式输出：
 
 ```rust
 use litert_lm_edge::{Backend, Engine, InputData, SessionConfig, StreamEvent};
@@ -353,8 +335,7 @@ fn main() -> litert_lm_edge::Result<()> {
 
 ### Conversation API
 
-Use `Conversation` for chat-style state, system messages, initial history, tool
-calling, and the raw JSON escape hatch.
+`Conversation` 适合 chat-style 状态、system message、初始历史、工具调用和 raw JSON escape hatch。
 
 ```rust
 use litert_lm_edge::{Backend, ConversationConfig, Engine, Message};
@@ -379,10 +360,9 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-### Conversation With Multimodal Content
+### Conversation 多模态内容
 
-Conversation image and audio file content keeps paths in JSON and lets the
-native runtime load them.
+Conversation 里的图片和音频文件内容会在 JSON 中保留路径，由 native runtime 加载。
 
 ```rust
 use litert_lm_edge::{
@@ -415,7 +395,7 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-Bytes are serialized as base64 blobs in the conversation JSON:
+bytes 内容会在 conversation JSON 中序列化为 base64 blob：
 
 ```rust
 use litert_lm_edge::{Content, Message};
@@ -432,10 +412,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Tool Calling
+### 工具调用
 
-`JsonTool` is the simplest way to register a function. Automatic tool calling
-is enabled by default and stops after 25 recurring tool calls.
+`JsonTool` 是注册函数最简单的方式。自动工具调用默认开启，最多递归调用 25 次。
 
 ```rust
 use litert_lm_edge::{
@@ -486,7 +465,7 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-Implement `Tool` directly when a closure is not enough:
+closure 不够用时，可以直接实现 `Tool`：
 
 ```rust
 use litert_lm_edge::{Result, Tool, ToolDefinition};
@@ -518,8 +497,7 @@ impl Tool for WeatherTool {
 }
 ```
 
-Disable automatic tool execution or change the recursion limit with
-`SendOptions`:
+使用 `SendOptions` 可以关闭自动工具执行，或调整递归上限：
 
 ```rust
 use litert_lm_edge::{
@@ -548,8 +526,7 @@ fn main() -> litert_lm_edge::Result<()> {
 
 ### Raw JSON Conversation
 
-Use `send_message_raw` when the native conversation JSON shape moves faster
-than the typed Rust wrapper.
+当 native conversation JSON 结构变化快于 typed Rust wrapper 时，可以使用 `send_message_raw`。
 
 ```rust
 use litert_lm_edge::{Backend, ConversationConfig, Engine, SendOptions};
@@ -577,19 +554,18 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
-### Canceling Work
+### 取消任务
 
-`Session` and `Conversation` both expose cancellation. This is mainly useful
-from another owner of the mutable value in application code.
+`Session` 和 `Conversation` 都暴露了取消方法。在应用代码中，当其他 owner 持有对应 mutable value 时，这个能力比较有用。
 
 ```rust
 session.cancel_process();
 conversation.cancel_process();
 ```
 
-### Included Examples
+### 仓库内 Examples
 
-This repository also includes runnable examples:
+仓库也包含可以直接运行的 examples：
 
 ```bash
 cargo run -p litert-lm-edge --example simple_generate -- \
