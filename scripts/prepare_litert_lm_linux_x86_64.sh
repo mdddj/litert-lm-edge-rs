@@ -34,11 +34,18 @@ if ! command -v patchelf >/dev/null 2>&1; then
 fi
 
 if command -v clang-18 >/dev/null 2>&1; then
-  LLVM_BIN_DIR="$(dirname "$(command -v clang-18)")"
-  export PATH="${LLVM_BIN_DIR}:${PATH}"
+  export CC="$(command -v clang-18)"
+  export CXX="$(command -v clang++-18)"
+  LLVM_BIN_DIR="$(dirname "${CC}")"
+  export PATH="/usr/local/bin:${LLVM_BIN_DIR}:${PATH}"
+else
+  export CC="${CC:-clang}"
+  export CXX="${CXX:-clang++}"
 fi
-export CC="${CC:-clang}"
-export CXX="${CXX:-clang++}"
+echo "Using C compiler: ${CC}"
+echo "Using C++ compiler: ${CXX}"
+echo "Compiler version:"
+"${CC}" --version | head -3
 
 enable_engine_cpu_alwayslink() {
   local build_file="$1"
@@ -101,6 +108,7 @@ EOF
     "--action_env=PATH=${PATH}" \
     "--action_env=CC=${CC}" \
     "--action_env=CXX=${CXX}" \
+    "--repo_env=PATH=${PATH}" \
     "--repo_env=CC=${CC}" \
     "--repo_env=CXX=${CXX}" \
     "--disk_cache=${BAZEL_DISK_CACHE}" \
@@ -135,7 +143,7 @@ LiteRT-LM tag: ${TAG}
 LiteRT-LM commit: ${COMMIT}
 Target: x86_64-unknown-linux-gnu
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
-Bazel command: ${BAZEL[*]} --output_user_root=${BAZEL_OUTPUT_USER_ROOT} build //litert_lm_c_api_vendor:litert_lm_c_api_vendor --config=linux --action_env=PATH --action_env=CC=${CC} --action_env=CXX=${CXX} --repo_env=CC=${CC} --repo_env=CXX=${CXX} --disk_cache=${BAZEL_DISK_CACHE} --repository_cache=${BAZEL_REPOSITORY_CACHE}
+Bazel command: ${BAZEL[*]} --output_user_root=${BAZEL_OUTPUT_USER_ROOT} build //litert_lm_c_api_vendor:litert_lm_c_api_vendor --config=linux --action_env=PATH --action_env=CC=${CC} --action_env=CXX=${CXX} --repo_env=PATH --repo_env=CC=${CC} --repo_env=CXX=${CXX} --disk_cache=${BAZEL_DISK_CACHE} --repository_cache=${BAZEL_REPOSITORY_CACHE}
 Library: ${LIB_NAME}
 Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 EOF

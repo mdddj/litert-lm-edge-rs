@@ -53,6 +53,8 @@ jobs:
         shell: bash
         env:
           LITERT_LM_TAG: ${{ inputs.litert_lm_tag }}
+          CC: /usr/bin/clang-18
+          CXX: /usr/bin/clang++-18
         run: scripts/prepare_litert_lm_linux_x86_64.sh
 
       - name: Upload runtime artifact
