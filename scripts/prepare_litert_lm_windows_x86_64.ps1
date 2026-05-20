@@ -105,6 +105,7 @@ function New-ImportLibraryFromDll {
     }
 
     Remove-Item -Force -ErrorAction SilentlyContinue $DefPath
+    Remove-Item -Force -ErrorAction SilentlyContinue ([System.IO.Path]::ChangeExtension($OutLib, ".exp"))
     Write-Host "Generated import library $OutLib from $($Exports.Count) exported C API functions."
 }
 
