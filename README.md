@@ -126,6 +126,16 @@ litert-lm-edge = { git = "https://github.com/mdddj/litert-lm-edge-rs" }
 serde_json = "1"
 ```
 
+The model downloader is optional:
+
+```toml
+[dependencies]
+litert-lm-edge = {
+    git = "https://github.com/mdddj/litert-lm-edge-rs",
+    features = ["model-download"],
+}
+```
+
 For local development against this workspace:
 
 ```toml
@@ -139,6 +149,64 @@ required at runtime:
 
 ```bash
 MODEL=/path/to/model.litertlm
+```
+
+### Downloading Known Models
+
+Enable `model-download` to download the two supported Gemma 4 LiteRT-LM models:
+
+| Model | File | Size | SHA256 |
+| --- | --- | ---: | --- |
+| Gemma 4 E2B | `gemma-4-E2B-it.litertlm` | 2.4 GiB | `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c` |
+| Gemma 4 E4B | `gemma-4-E4B-it.litertlm` | 3.4 GiB | `0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0` |
+
+```rust
+use litert_lm_edge::{KnownModel, ModelDownloader};
+
+fn main() -> litert_lm_edge::Result<()> {
+    let path = ModelDownloader::new().download_to_dir(
+        KnownModel::Gemma4E2B,
+        "models",
+    )?;
+
+    println!("{}", path.display());
+    Ok(())
+}
+```
+
+Progress callbacks are available for CLI tools:
+
+```rust
+use litert_lm_edge::{DownloadProgress, KnownModel, ModelDownloader};
+
+fn main() -> litert_lm_edge::Result<()> {
+    let path = ModelDownloader::new().download_to_dir_with_progress(
+        KnownModel::Gemma4E4B,
+        "models",
+        |progress: DownloadProgress| {
+            if let Some(total) = progress.total_bytes {
+                eprintln!("downloaded {} / {} bytes", progress.downloaded_bytes, total);
+            }
+        },
+    )?;
+
+    println!("{}", path.display());
+    Ok(())
+}
+```
+
+The downloader verifies SHA256 before moving the `.partial` file into place. To
+use a Hugging Face mirror:
+
+```rust
+use litert_lm_edge::{KnownModel, ModelDownloader};
+
+fn main() -> litert_lm_edge::Result<()> {
+    let downloader = ModelDownloader::new().base_url("https://hf-mirror.com");
+    let path = downloader.download_to_dir(KnownModel::Gemma4E2B, "models")?;
+    println!("{}", path.display());
+    Ok(())
+}
 ```
 
 ### Text Generation
@@ -665,6 +733,12 @@ cargo run -p litert-lm-edge --features tokio --example tokio_generate -- \
 
 cargo run -p litert-lm-edge --features tokio --example tokio_stream_generate -- \
   "$MODEL" "hello"
+
+cargo run -p litert-lm-edge --features model-download --example download_model -- \
+  e2b models
+
+cargo run -p litert-lm-edge --features model-download --example download_model -- \
+  e4b models
 
 cargo run -p litert-lm-edge --example multimodal_generate -- \
   "$MODEL" /path/to/image.png /path/to/audio.wav

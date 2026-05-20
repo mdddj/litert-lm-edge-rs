@@ -112,6 +112,16 @@ litert-lm-edge = { git = "https://github.com/mdddj/litert-lm-edge-rs" }
 serde_json = "1"
 ```
 
+模型下载工具是可选 feature：
+
+```toml
+[dependencies]
+litert-lm-edge = {
+    git = "https://github.com/mdddj/litert-lm-edge-rs",
+    features = ["model-download"],
+}
+```
+
 如果在本地直接依赖这个 workspace：
 
 ```toml
@@ -123,6 +133,63 @@ litert-lm-edge = { path = "/path/to/litert-lm-edge-rs/litert-lm-edge" }
 
 ```bash
 MODEL=/path/to/model.litertlm
+```
+
+### 下载已知模型
+
+启用 `model-download` 后，可以下载这两个已支持的 Gemma 4 LiteRT-LM 模型：
+
+| 模型 | 文件 | 大小 | SHA256 |
+| --- | --- | ---: | --- |
+| Gemma 4 E2B | `gemma-4-E2B-it.litertlm` | 2.4 GiB | `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c` |
+| Gemma 4 E4B | `gemma-4-E4B-it.litertlm` | 3.4 GiB | `0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0` |
+
+```rust
+use litert_lm_edge::{KnownModel, ModelDownloader};
+
+fn main() -> litert_lm_edge::Result<()> {
+    let path = ModelDownloader::new().download_to_dir(
+        KnownModel::Gemma4E2B,
+        "models",
+    )?;
+
+    println!("{}", path.display());
+    Ok(())
+}
+```
+
+CLI 工具可以使用进度回调：
+
+```rust
+use litert_lm_edge::{DownloadProgress, KnownModel, ModelDownloader};
+
+fn main() -> litert_lm_edge::Result<()> {
+    let path = ModelDownloader::new().download_to_dir_with_progress(
+        KnownModel::Gemma4E4B,
+        "models",
+        |progress: DownloadProgress| {
+            if let Some(total) = progress.total_bytes {
+                eprintln!("downloaded {} / {} bytes", progress.downloaded_bytes, total);
+            }
+        },
+    )?;
+
+    println!("{}", path.display());
+    Ok(())
+}
+```
+
+downloader 会先写入 `.partial` 文件，并在 SHA256 校验通过后移动到最终路径。使用 Hugging Face 镜像时可以设置 `base_url`：
+
+```rust
+use litert_lm_edge::{KnownModel, ModelDownloader};
+
+fn main() -> litert_lm_edge::Result<()> {
+    let downloader = ModelDownloader::new().base_url("https://hf-mirror.com");
+    let path = downloader.download_to_dir(KnownModel::Gemma4E2B, "models")?;
+    println!("{}", path.display());
+    Ok(())
+}
 ```
 
 ### 文本生成
@@ -639,6 +706,12 @@ cargo run -p litert-lm-edge --features tokio --example tokio_generate -- \
 
 cargo run -p litert-lm-edge --features tokio --example tokio_stream_generate -- \
   "$MODEL" "hello"
+
+cargo run -p litert-lm-edge --features model-download --example download_model -- \
+  e2b models
+
+cargo run -p litert-lm-edge --features model-download --example download_model -- \
+  e4b models
 
 cargo run -p litert-lm-edge --example multimodal_generate -- \
   "$MODEL" /path/to/image.png /path/to/audio.wav

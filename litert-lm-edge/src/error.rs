@@ -25,6 +25,10 @@ pub enum Error {
     #[error("I/O error")]
     Io(#[from] std::io::Error),
 
+    #[cfg(feature = "model-download")]
+    #[error("HTTP error: {0}")]
+    Http(#[from] Box<ureq::Error>),
+
     #[error("JSON error")]
     Json(#[from] serde_json::Error),
 
@@ -43,4 +47,12 @@ pub enum Error {
     #[cfg(feature = "tokio")]
     #[error("async LiteRT-LM worker stopped")]
     WorkerStopped,
+
+    #[cfg(feature = "model-download")]
+    #[error("downloaded model checksum mismatch for {path}: expected {expected}, got {actual}")]
+    ChecksumMismatch {
+        path: String,
+        expected: String,
+        actual: String,
+    },
 }

@@ -2,6 +2,8 @@ mod conversation;
 mod error;
 mod input;
 mod message;
+#[cfg(feature = "model-download")]
+mod model_download;
 mod stream;
 #[cfg(feature = "tokio")]
 mod tokio_runtime;
@@ -11,6 +13,10 @@ pub use conversation::{Conversation, ConversationConfig, SendOptions};
 pub use error::{Error, Result};
 pub use input::InputData;
 pub use message::{Content, Message, Role, ToolCall, ToolCallFunction};
+#[cfg(feature = "model-download")]
+pub use model_download::{
+    sha256_file, verify_sha256, DownloadProgress, KnownModel, ModelDownloader, ModelInfo,
+};
 pub use stream::{StreamEvent, TextStream};
 #[cfg(feature = "tokio")]
 pub use tokio_runtime::{TokioConversation, TokioEngine, TokioSession, TokioTextStream};
