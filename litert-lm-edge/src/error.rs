@@ -39,4 +39,8 @@ pub enum Error {
 
     #[error("conversation exceeded recurring tool call limit of {0}")]
     RecurringToolCallLimit(usize),
+
+    #[cfg(feature = "tokio")]
+    #[error("async LiteRT-LM worker stopped")]
+    WorkerStopped,
 }

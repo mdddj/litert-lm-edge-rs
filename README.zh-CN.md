@@ -172,6 +172,66 @@ fn main() -> litert_lm_edge::Result<()> {
 }
 ```
 
+### Tokio 异步
+
+启用可选的 `tokio` feature 后，可以使用 async wrapper：
+
+```toml
+[dependencies]
+litert-lm-edge = {
+    git = "https://github.com/mdddj/litert-lm-edge-rs",
+    features = ["tokio"],
+}
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+```
+
+`TokioEngine` 会在专用 worker 线程中运行 LiteRT-LM。Tokio task 通过 channel await 请求结果，所以阻塞 native 调用不会跑在 Tokio worker 线程上，也不会给 raw FFI handle 强行标记 `Send` 或 `Sync`。
+
+```rust
+use litert_lm_edge::{Backend, Engine, SessionConfig};
+
+#[tokio::main]
+async fn main() -> litert_lm_edge::Result<()> {
+    let engine = Engine::builder("/path/to/model.litertlm")
+        .backend(Backend::Cpu)
+        .build_tokio()
+        .await?;
+
+    let session = engine.create_session(SessionConfig::default()).await?;
+    let text = session.generate_text("用一句话介绍杭州。").await?;
+    println!("{text}");
+
+    Ok(())
+}
+```
+
+异步流式输出使用 `TokioTextStream::next().await`：
+
+```rust
+use litert_lm_edge::{Backend, Engine, SessionConfig, StreamEvent};
+
+#[tokio::main]
+async fn main() -> litert_lm_edge::Result<()> {
+    let engine = Engine::builder("/path/to/model.litertlm")
+        .backend(Backend::Cpu)
+        .build_tokio()
+        .await?;
+
+    let session = engine.create_session(SessionConfig::default()).await?;
+    let mut stream = session.generate_text_stream("写三句话介绍杭州。").await?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            StreamEvent::Chunk(chunk) => print!("{chunk}"),
+            StreamEvent::Final => break,
+            StreamEvent::Error(message) => eprintln!("stream error: {message}"),
+        }
+    }
+
+    Ok(())
+}
+```
+
 ### Session 配置
 
 ```rust
@@ -572,6 +632,12 @@ cargo run -p litert-lm-edge --example simple_generate -- \
   "$MODEL" "hello"
 
 cargo run -p litert-lm-edge --example stream_generate -- \
+  "$MODEL" "hello"
+
+cargo run -p litert-lm-edge --features tokio --example tokio_generate -- \
+  "$MODEL" "hello"
+
+cargo run -p litert-lm-edge --features tokio --example tokio_stream_generate -- \
   "$MODEL" "hello"
 
 cargo run -p litert-lm-edge --example multimodal_generate -- \

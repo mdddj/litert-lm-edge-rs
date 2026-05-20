@@ -3,6 +3,8 @@ mod error;
 mod input;
 mod message;
 mod stream;
+#[cfg(feature = "tokio")]
+mod tokio_runtime;
 mod tool;
 
 pub use conversation::{Conversation, ConversationConfig, SendOptions};
@@ -10,6 +12,8 @@ pub use error::{Error, Result};
 pub use input::InputData;
 pub use message::{Content, Message, Role, ToolCall, ToolCallFunction};
 pub use stream::{StreamEvent, TextStream};
+#[cfg(feature = "tokio")]
+pub use tokio_runtime::{TokioConversation, TokioEngine, TokioSession, TokioTextStream};
 pub use tool::{JsonTool, Tool, ToolDefinition};
 
 pub(crate) use litert_lm_edge_sys as ffi;
@@ -124,6 +128,11 @@ impl Engine {
 }
 
 impl EngineBuilder {
+    #[cfg(feature = "tokio")]
+    pub async fn build_tokio(self) -> Result<tokio_runtime::TokioEngine> {
+        tokio_runtime::TokioEngine::new(self).await
+    }
+
     pub fn backend(mut self, backend: Backend) -> Self {
         self.backend = backend;
         self
