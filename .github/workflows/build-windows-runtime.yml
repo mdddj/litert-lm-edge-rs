@@ -15,9 +15,22 @@ jobs:
       LITERT_LM_BUILD_CACHE: C:\llm
       BAZELISK_HOME: C:\bazelisk
       BAZEL_OUTPUT_USER_ROOT: C:\bzl
+      BAZEL_DISK_CACHE: C:\bazel-disk-cache
+      BAZEL_REPOSITORY_CACHE: C:\bazel-repository-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Restore Bazel cache
+        id: bazel-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            C:\bazel-disk-cache
+            C:\bazel-repository-cache
+          key: litert-lm-windows-bazel-${{ inputs.litert_lm_tag }}-${{ github.run_id }}
+          restore-keys: |
+            litert-lm-windows-bazel-${{ inputs.litert_lm_tag }}-
 
       - name: Install Bazelisk
         shell: pwsh
@@ -38,3 +51,13 @@ jobs:
         with:
           name: litert-lm-edge-windows-x86_64-runtime
           path: litert-lm-edge-sys/vendor/windows-x86_64
+
+      - name: Save Bazel cache
+        if: always()
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: |
+            C:\bazel-disk-cache
+            C:\bazel-repository-cache
+          key: litert-lm-windows-bazel-${{ inputs.litert_lm_tag }}-${{ github.run_id }}
