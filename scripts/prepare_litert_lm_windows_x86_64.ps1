@@ -88,6 +88,10 @@ function New-ImportLibraryFromDll {
     )
 
     if (-not $Exports) {
+        Write-Host "dumpbin /exports output for ${DllPath}:"
+        $DumpbinOutput | Select-Object -First 120 | ForEach-Object {
+            Write-Host $_
+        }
         throw "No litert_lm_* exports were found in $DllPath."
     }
 
@@ -102,6 +106,27 @@ function New-ImportLibraryFromDll {
 
     Remove-Item -Force -ErrorAction SilentlyContinue $DefPath
     Write-Host "Generated import library $OutLib from $($Exports.Count) exported C API functions."
+}
+
+function Enable-EngineCpuAlwaysLink {
+    param([string] $BuildFile)
+
+    $Text = Get-Content -Raw $BuildFile
+    $Pattern = '(?s)cc_library\(\s+name = "engine_cpu",.*?\n\)'
+    $Match = [regex]::Match($Text, $Pattern)
+    if (-not $Match.Success) {
+        throw "Could not find the //c:engine_cpu target in $BuildFile."
+    }
+
+    if ($Match.Value -match 'alwayslink\s*=') {
+        Write-Host "LiteRT-LM //c:engine_cpu already has alwayslink enabled."
+        return
+    }
+
+    $ReplacementBlock = $Match.Value -replace '(name = "engine_cpu",\r?\n)', ('$1    alwayslink = True,' + [Environment]::NewLine)
+    $Patched = $Text.Substring(0, $Match.Index) + $ReplacementBlock + $Text.Substring($Match.Index + $Match.Length)
+    Set-Content -NoNewline -Encoding UTF8 $BuildFile $Patched
+    Write-Host "Patched LiteRT-LM //c:engine_cpu with alwayslink = True so the C API exports are retained."
 }
 
 # GitHub's Windows runners preinstall Android SDK/NDK paths. LiteRT-LM's
@@ -122,6 +147,8 @@ if (Test-Path (Join-Path $SrcDir ".git")) {
 
 git -C $SrcDir checkout --detach $Tag
 $Commit = git -C $SrcDir rev-parse HEAD
+
+Enable-EngineCpuAlwaysLink -BuildFile (Join-Path $SrcDir "c\BUILD")
 
 New-Item -ItemType Directory -Force -Path $VendorBuildDir | Out-Null
 @'
