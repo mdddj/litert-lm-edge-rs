@@ -4,4 +4,4 @@ Target: aarch64-apple-darwin
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Bazel command: bazelisk build //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Library: liblitert_lm_c_api.dylib
-Generated: 2026-05-20T04:01:55Z
+Generated: 2026-05-21T03:56:15Z

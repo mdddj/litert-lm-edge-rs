@@ -2,3 +2,5 @@
 .litert-lm-build/
 *.profraw
 **/*.rs.bk
+models/
+.idea/

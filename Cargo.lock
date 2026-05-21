@@ -580,6 +580,8 @@ version = "0.1.0"
 dependencies = [
  "cbindgen",
  "litert-lm-edge",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
