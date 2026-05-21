@@ -1,0 +1,42 @@
+name: Build UE FFI Win64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust target
+        shell: pwsh
+        run: rustup target add x86_64-pc-windows-msvc
+
+      - name: Build UE FFI bridge
+        shell: pwsh
+        run: scripts/build_ue_plugin_win64.ps1 -StageRoot artifacts/LiteRtLmEdge
+
+      - name: Stage UE ThirdParty layout
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $StageRoot = "artifacts/LiteRtLmEdge"
+          Get-ChildItem -Path $StageRoot -Recurse -File | Sort-Object FullName | ForEach-Object {
+            Write-Host $_.FullName
+          }
+
+      - name: Upload UE ThirdParty Win64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: litert-lm-edge-ue-win64-thirdparty
+          path: artifacts/LiteRtLmEdge
+
+      - name: Upload raw Rust Win64 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: litert-lm-edge-ue-ffi-win64-raw
+          path: |
+            target/x86_64-pc-windows-msvc/release/litert_lm_edge_ue_ffi.dll
+            target/x86_64-pc-windows-msvc/release/litert_lm_edge_ue_ffi*.lib

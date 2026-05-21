@@ -4,7 +4,7 @@ use litert_lm_edge_sys as ffi;
 use std::ffi::{c_char, c_void, CStr};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,6 +102,34 @@ impl Drop for TextStream<'_> {
 }
 
 impl TextStream<'_> {
+    pub fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<StreamEvent>> {
+        let event = match self.receiver.recv_timeout(timeout) {
+            Ok(event) => event,
+            Err(mpsc::RecvTimeoutError::Timeout) => return Ok(None),
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                return Err(Error::InvalidResponse(
+                    "stream callback disconnected".to_owned(),
+                ))
+            }
+        };
+        self.mark_terminal(&event);
+        Ok(Some(event))
+    }
+
+    pub fn try_recv(&mut self) -> Result<Option<StreamEvent>> {
+        let event = match self.receiver.try_recv() {
+            Ok(event) => event,
+            Err(TryRecvError::Empty) => return Ok(None),
+            Err(TryRecvError::Disconnected) => {
+                return Err(Error::InvalidResponse(
+                    "stream callback disconnected".to_owned(),
+                ))
+            }
+        };
+        self.mark_terminal(&event);
+        Ok(Some(event))
+    }
+
     fn mark_terminal(&mut self, event: &StreamEvent) {
         if matches!(event, StreamEvent::Final | StreamEvent::Error(_)) {
             self.terminal_received = true;

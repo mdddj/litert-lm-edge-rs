@@ -1,0 +1,33 @@
+[package]
+name = "litert-lm-edge-ue-ffi"
+description = "UE-facing C ABI bridge for LiteRT-LM Edge."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[lib]
+name = "litert_lm_edge_ue_ffi"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+litert-lm-edge.workspace = true
+
+[build-dependencies]
+cbindgen = "0.27"
+
+[features]
+default = [
+    "vendor-darwin-arm64",
+    "vendor-linux-x86_64",
+    "vendor-windows-x86_64",
+]
+system = ["litert-lm-edge/system"]
+vendor-darwin-arm64 = ["litert-lm-edge/vendor-darwin-arm64"]
+vendor-linux-x86_64 = ["litert-lm-edge/vendor-linux-x86_64"]
+vendor-windows-x86_64 = ["litert-lm-edge/vendor-windows-x86_64"]
+
+[lints]
+workspace = true

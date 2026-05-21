@@ -2,10 +2,12 @@
 members = [
     "litert-lm-edge",
     "litert-lm-edge-sys",
+    "litert-lm-edge-ue-ffi",
 ]
 resolver = "2"
 
 [workspace.dependencies]
+litert-lm-edge = { path = "litert-lm-edge", default-features = false }
 litert-lm-edge-sys = { path = "litert-lm-edge-sys", default-features = false }
 
 [workspace.package]
