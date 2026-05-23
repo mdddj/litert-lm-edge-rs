@@ -8,7 +8,11 @@ style = "type"
 [export]
 include = [
     "LiteRtLmEdgeStreamHandle",
+    "LiteRtLmEdgeConversationHandle",
+    "LiteRtLmEdgeStringArray",
+    "LiteRtLmEdgeMultimodalRequest",
     "LiteRtLmEdgeTokenCallback",
     "LiteRtLmEdgeErrorCallback",
     "LiteRtLmEdgeDoneCallback",
+    "LiteRtLmEdgeJsonCallback",
 ]

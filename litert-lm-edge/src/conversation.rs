@@ -14,6 +14,7 @@ pub struct ConversationConfig {
     pub system_message: Option<Message>,
     pub initial_messages: Vec<Message>,
     pub tools: Vec<Arc<dyn Tool>>,
+    pub tools_json: Option<Value>,
     pub session_config: SessionConfig,
     pub enable_constrained_decoding: Option<bool>,
     pub filter_channel_content_from_kv_cache: Option<bool>,
@@ -77,6 +78,11 @@ impl ConversationConfig {
         self
     }
 
+    pub fn tools_json(mut self, tools_json: Value) -> Self {
+        self.tools_json = Some(tools_json);
+        self
+    }
+
     pub fn session_config(mut self, session_config: SessionConfig) -> Self {
         self.session_config = session_config;
         self
@@ -99,6 +105,7 @@ impl<'engine> Conversation<'engine> {
             system_message,
             initial_messages,
             tools,
+            tools_json,
             session_config,
             enable_constrained_decoding,
             filter_channel_content_from_kv_cache,
@@ -134,13 +141,12 @@ impl<'engine> Conversation<'engine> {
             }
         }
 
-        let tools_json = if registry.is_empty() {
-            None
-        } else {
-            Some(CString::new(serde_json::to_string(
-                &registry.schemas_json(),
-            )?)?)
+        let tools_json_text = match tools_json {
+            Some(value) => Some(serde_json::to_string(&value)?),
+            None if !registry.is_empty() => Some(serde_json::to_string(&registry.schemas_json())?),
+            None => None,
         };
+        let tools_json = tools_json_text.map(CString::new).transpose()?;
         if let Some(tools_json) = tools_json.as_ref() {
             // SAFETY: raw_config is valid and tools_json lives for this call.
             unsafe {
