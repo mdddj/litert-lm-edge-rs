@@ -834,6 +834,7 @@ fn run_stream(request: StreamRequest, cancel: Arc<AtomicBool>, callbacks: Stream
 
     let config = SessionConfig {
         max_output_tokens: request.max_output_tokens,
+        apply_prompt_template: Some(true),
         ..SessionConfig::default()
     };
     let mut session = match engine.create_session(config) {
