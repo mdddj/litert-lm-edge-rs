@@ -23,7 +23,7 @@ litert-lm-edge-sys/vendor/windows-x86_64/litert_lm_c_api.lib
 
 这些目标平台上的使用者不需要设置 `LITERT_LM_LIB_DIR`、`LITERT_LM_LINK_LIB`，也不需要安装 Bazel 或下载 LiteRT-LM 源码。运行时只需要提供 `.litertlm` 模型文件。其他平台需要使用 `system` 模式。
 
-这些打包 runtime 来自 `google-ai-edge/LiteRT-LM` `v0.12.0`，构建目标是 CPU-only C API。Rust API 暴露了 GPU、Metal、NPU、vision 和 audio 相关设置，但默认打包 runtime 以 CPU 优先。需要自定义 accelerator 时，请使用 `system` 模式链接自己的 native build。
+每个已提交 runtime 的精确上游 tag 记录在 `litert-lm-edge-sys/vendor/<target>/VERSION`。runtime 准备脚本和 workflow 默认使用 `google-ai-edge/LiteRT-LM` `v0.13.1`，构建目标是 CPU-only C API。Rust API 暴露了 GPU、Metal、NPU、vision 和 audio 相关设置，但默认打包 runtime 以 CPU 优先。需要自定义 accelerator 时，请使用 `system` 模式链接自己的 native build。
 
 ## 构建模式
 
@@ -65,7 +65,7 @@ Apple Silicon macOS 上可以重新构建打包 runtime：
 scripts/prepare_litert_lm_darwin_arm64.sh
 ```
 
-脚本会把 LiteRT-LM `v0.12.0` 下载到 `.litert-lm-build/`，用 Bazel/Bazelisk 构建共享 CPU C API 库，把产物复制到 `litert-lm-edge-sys/vendor/darwin-arm64/`，并写入 `VERSION` 和 `SHA256SUMS`。
+脚本会把 LiteRT-LM `v0.13.1` 下载到 `.litert-lm-build/`，用 Bazel/Bazelisk 构建共享 CPU C API 库，把产物复制到 `litert-lm-edge-sys/vendor/darwin-arm64/`，并写入 `VERSION` 和 `SHA256SUMS`。
 
 Windows runtime 必须在 Windows x86_64 和 MSVC Build Tools 环境中构建：
 
@@ -94,6 +94,20 @@ scripts/prepare_litert_lm_linux_x86_64.sh
 ```
 
 在 GitHub 上运行它，下载 `litert-lm-edge-linux-x86_64-runtime` artifact，然后把内容复制到 `litert-lm-edge-sys/vendor/linux-x86_64/`。
+
+### Runtime 升级检查清单
+
+升级打包 LiteRT-LM runtime 时，先同时更新所有准备脚本和 runtime workflow 里的 tag，然后分别重建并确认每个已提交的 `vendor/<target>/VERSION`。不要把 Linux 成功当成 Windows 已经没问题：GitHub Windows runner 可能从不同镜像或 Bazel cache 获取 `http_archive` 依赖。
+
+这次 `v0.13.1` 升级暴露的问题就是 Windows 专有触发：LiteRT-LM 的 `WORKSPACE` 用固定 SHA256 引用了 `https://zlib.net/fossils/zlib-1.3.1.tar.gz`，但实际下载到的 archive 和该 checksum 不一致。准备脚本会在 Bazel analysis 前把上游 `minizip` archive patch 成 Bazel `urls` fallback 列表，并把 GitHub zlib release URL 放在第一位。以后上游调整这个 archive block 时，需要同步检查这个 patch。
+
+每次升级按这个顺序检查：
+
+1. 对比新旧 tag 的 upstream `c/engine.h`，只在所有打包 runtime 都导出对应符号后，再添加 raw FFI、平台 export list 和 safe wrapper。
+2. 先在 GitHub 上分别跑 Windows 和 Linux runtime workflow，成功后再把 artifact 复制进 `vendor/`。
+3. 在 macOS 或 Linux 上复制 Windows artifact 后，必要时规范化文本文件换行，再运行 `shasum -a 256 -c SHA256SUMS`；PowerShell 生成的文件可能带 CRLF。
+4. 检查重建后的库是否真的导出了预期 C API，尤其是本次新增的符号。
+5. 最后跑 `cargo fmt --all --check`、`cargo check --workspace --all-targets`、`git diff --check`，并校验每个 `vendor/<target>/SHA256SUMS`。
 
 ## 使用方式
 

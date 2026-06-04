@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TAG="${LITERT_LM_TAG:-v0.12.0}"
+TAG="${LITERT_LM_TAG:-v0.13.1}"
 REPO_URL="${LITERT_LM_REPO_URL:-https://github.com/google-ai-edge/LiteRT-LM.git}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${LITERT_LM_BUILD_CACHE:-${ROOT_DIR}/.litert-lm-build}"
@@ -26,6 +26,32 @@ else
   exit 1
 fi
 
+use_stable_minizip_urls() {
+  local workspace_file="$1"
+  python3 - "$workspace_file" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+old = '    url = "https://zlib.net/fossils/zlib-1.3.1.tar.gz",'
+new = '''    urls = [
+        "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz",
+        "https://www.zlib.net/fossils/zlib-1.3.1.tar.gz",
+        "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
+    ],'''
+
+if new in text:
+    print("LiteRT-LM minizip archive already has fallback URLs.")
+    raise SystemExit(0)
+if old not in text:
+    raise SystemExit(f"Could not find the minizip archive URL in {path}")
+
+path.write_text(text.replace(old, new, 1))
+print("Patched LiteRT-LM minizip archive with fallback URLs.")
+PY
+}
+
 mkdir -p "${CACHE_DIR}" "${VENDOR_DIR}"
 
 if [[ -d "${SRC_DIR}/.git" ]]; then
@@ -36,6 +62,8 @@ fi
 
 git -C "${SRC_DIR}" checkout --detach "${TAG}"
 COMMIT="$(git -C "${SRC_DIR}" rev-parse HEAD)"
+
+use_stable_minizip_urls "${SRC_DIR}/WORKSPACE"
 
 mkdir -p "${VENDOR_BUILD_DIR}"
 cat >"${EXPORTS_FILE}" <<'EOF'
@@ -62,6 +90,7 @@ _litert_lm_conversation_config_set_tools
 _litert_lm_conversation_create
 _litert_lm_conversation_delete
 _litert_lm_conversation_get_benchmark_info
+_litert_lm_conversation_get_token_count
 _litert_lm_conversation_optional_args_create
 _litert_lm_conversation_optional_args_delete
 _litert_lm_conversation_optional_args_set_visual_token_budget

@@ -27,10 +27,12 @@ That means users on those targets do not need `LITERT_LM_LIB_DIR`,
 `LITERT_LM_LINK_LIB`, Bazel, or a LiteRT-LM source checkout. They only need a
 `.litertlm` model file at runtime. Other targets should use `system` mode.
 
-The bundled runtimes are built from `google-ai-edge/LiteRT-LM` `v0.12.0` with
-the CPU-only C API target. GPU, Metal, NPU, vision, and audio settings are
-exposed in Rust, but the bundled runtimes are intentionally CPU-first. Use
-`system` mode for a custom native build.
+The exact upstream tag for each checked-in runtime is recorded in
+`litert-lm-edge-sys/vendor/<target>/VERSION`. The runtime preparation scripts
+and workflows default to `google-ai-edge/LiteRT-LM` `v0.13.1` with the CPU-only
+C API target. GPU, Metal, NPU, vision, and audio settings are exposed in Rust,
+but the bundled runtimes are intentionally CPU-first. Use `system` mode for a
+custom native build.
 
 ## Build Modes
 
@@ -72,7 +74,7 @@ The bundled runtime can be rebuilt on Apple Silicon macOS:
 scripts/prepare_litert_lm_darwin_arm64.sh
 ```
 
-The script downloads LiteRT-LM `v0.12.0` into `.litert-lm-build/`, builds a
+The script downloads LiteRT-LM `v0.13.1` into `.litert-lm-build/`, builds a
 shared CPU C API library with Bazel/Bazelisk, copies it into
 `litert-lm-edge-sys/vendor/darwin-arm64/`, and writes `VERSION` plus
 `SHA256SUMS`.
@@ -108,6 +110,37 @@ There is also a manual GitHub Actions workflow:
 Run it from GitHub, download the `litert-lm-edge-linux-x86_64-runtime`
 artifact, and copy its contents into
 `litert-lm-edge-sys/vendor/linux-x86_64/`.
+
+### Runtime Upgrade Checklist
+
+When bumping the bundled LiteRT-LM runtime, update the tag in all preparation
+scripts and runtime workflows, then rebuild and verify every checked-in
+`vendor/<target>/VERSION`. Do not treat a Linux success as proof that Windows is
+fixed: GitHub's Windows runner may fetch Bazel `http_archive` dependencies from
+different mirrors or caches.
+
+The `v0.13.1` upgrade exposed this exact failure on Windows: LiteRT-LM's
+`WORKSPACE` referenced `https://zlib.net/fossils/zlib-1.3.1.tar.gz` with a
+fixed SHA256, but the downloaded archive did not match that checksum. The
+preparation scripts patch that upstream `minizip` archive to use Bazel `urls`
+fallbacks, with the GitHub zlib release URL first, before Bazel analysis starts.
+Keep that patch in sync when upstream changes the archive block.
+
+For each upgrade:
+
+1. Compare upstream `c/engine.h` against the previous tag and add new raw FFI
+   symbols, platform export lists, and safe wrappers only when the bundled
+   runtimes all export the symbol.
+2. Run the Windows and Linux runtime workflows from GitHub before copying their
+   artifacts into `vendor/`.
+3. After copying Windows artifacts on macOS or Linux, normalize text files if
+   needed and run `shasum -a 256 -c SHA256SUMS`; PowerShell-generated files may
+   contain CRLF line endings.
+4. Confirm the expected C API exports exist in the rebuilt libraries, especially
+   for newly added symbols.
+5. Finish with `cargo fmt --all --check`, `cargo check --workspace
+   --all-targets`, `git diff --check`, and checksum verification for every
+   `vendor/<target>/SHA256SUMS`.
 
 ## Usage
 

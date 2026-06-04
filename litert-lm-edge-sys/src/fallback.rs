@@ -228,4 +228,5 @@ extern "C" {
         message_json: *const c_char,
     ) -> *const c_char;
     pub fn litert_lm_conversation_cancel_process(conversation: *mut LiteRtLmConversation);
+    pub fn litert_lm_conversation_get_token_count(conversation: *mut LiteRtLmConversation) -> i32;
 }

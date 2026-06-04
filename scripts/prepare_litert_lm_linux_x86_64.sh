@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TAG="${LITERT_LM_TAG:-v0.12.0}"
+TAG="${LITERT_LM_TAG:-v0.13.1}"
 REPO_URL="${LITERT_LM_REPO_URL:-https://github.com/google-ai-edge/LiteRT-LM.git}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${LITERT_LM_BUILD_CACHE:-${ROOT_DIR}/.litert-lm-build}"
@@ -72,6 +72,32 @@ print("Patched LiteRT-LM //c:engine_cpu with alwayslink = True so the C API expo
 PY
 }
 
+use_stable_minizip_urls() {
+  local workspace_file="$1"
+  python3 - "$workspace_file" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+old = '    url = "https://zlib.net/fossils/zlib-1.3.1.tar.gz",'
+new = '''    urls = [
+        "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz",
+        "https://www.zlib.net/fossils/zlib-1.3.1.tar.gz",
+        "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
+    ],'''
+
+if new in text:
+    print("LiteRT-LM minizip archive already has fallback URLs.")
+    raise SystemExit(0)
+if old not in text:
+    raise SystemExit(f"Could not find the minizip archive URL in {path}")
+
+path.write_text(text.replace(old, new, 1))
+print("Patched LiteRT-LM minizip archive with fallback URLs.")
+PY
+}
+
 mkdir -p "${CACHE_DIR}" "${VENDOR_DIR}" "${BAZEL_OUTPUT_USER_ROOT}" \
   "${BAZEL_DISK_CACHE}" "${BAZEL_REPOSITORY_CACHE}"
 
@@ -85,6 +111,7 @@ git -C "${SRC_DIR}" checkout --detach "${TAG}"
 COMMIT="$(git -C "${SRC_DIR}" rev-parse HEAD)"
 
 enable_engine_cpu_alwayslink "${SRC_DIR}/c/BUILD"
+use_stable_minizip_urls "${SRC_DIR}/WORKSPACE"
 
 mkdir -p "${VENDOR_BUILD_DIR}"
 cat >"${BUILD_FILE}" <<'EOF'
