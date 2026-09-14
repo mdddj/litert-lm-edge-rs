@@ -8,7 +8,7 @@ CACHE_DIR="${LITERT_LM_BUILD_CACHE:-${ROOT_DIR}/.litert-lm-build}"
 BAZEL_OUTPUT_USER_ROOT="${BAZEL_OUTPUT_USER_ROOT:-/tmp/bzl}"
 BAZEL_DISK_CACHE="${BAZEL_DISK_CACHE:-/tmp/bazel-disk-cache}"
 BAZEL_REPOSITORY_CACHE="${BAZEL_REPOSITORY_CACHE:-/tmp/bazel-repository-cache}"
-SRC_DIR="${CACHE_DIR}/LiteRT-LM"
+SRC_DIR="${CACHE_DIR}/LiteRT-LM-${TAG}"
 VENDOR_DIR="${ROOT_DIR}/litert-lm-edge-sys/vendor/linux-x86_64"
 VENDOR_BUILD_DIR="${SRC_DIR}/litert_lm_c_api_vendor"
 BUILD_FILE="${VENDOR_BUILD_DIR}/BUILD.bazel"
@@ -27,6 +27,9 @@ else
   echo "bazelisk or bazel is required to build LiteRT-LM." >&2
   exit 1
 fi
+
+git lfs version >/dev/null
+export GIT_LFS_SKIP_SMUDGE=1
 
 if ! command -v patchelf >/dev/null 2>&1; then
   echo "patchelf is required to set the Linux runtime rpath." >&2
@@ -84,6 +87,7 @@ fi
 
 git -C "${SRC_DIR}" checkout --detach "${TAG}"
 COMMIT="$(git -C "${SRC_DIR}" rev-parse HEAD)"
+git -C "${SRC_DIR}" lfs pull --include="prebuilt/linux_x86_64/*"
 
 enable_engine_cpu_alwayslink "${SRC_DIR}/c/BUILD"
 

@@ -2,8 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Rust bindings for the LiteRT-LM C API. This workspace binds the stable C ABI in
-`c/engine.h`, not the C++ classes.
+Rust bindings for the LiteRT-LM C API in `c/engine.h` and `c/conversation.h`,
+not the C++ classes.
 
 ## Crates
 
@@ -29,10 +29,23 @@ That means users on those targets do not need `LITERT_LM_LIB_DIR`,
 
 The exact upstream tag for each checked-in runtime is recorded in
 `litert-lm-edge-sys/vendor/<target>/VERSION`. The runtime preparation scripts
-and workflows default to `google-ai-edge/LiteRT-LM` `v0.13.1` with the CPU-only
+and workflows default to `google-ai-edge/LiteRT-LM` `v0.17.0` with the CPU-only
 C API target. GPU, Metal, NPU, vision, and audio settings are exposed in Rust,
 but the bundled runtimes are intentionally CPU-first. Use `system` mode for a
 custom native build.
+
+### SDK 0.2 migration
+
+SDK 0.2 targets LiteRT-LM v0.17.0. The safe Rust API is unchanged, but the raw
+`litert-lm-edge-sys` ABI is incompatible with v0.13.1: inputs and sampler
+parameters are opaque native objects, generation takes an array of input
+pointers, and streaming callbacks receive `LiteRtLmStreamChunk` objects.
+Do not mix this SDK with older native runtimes, including in `system` mode.
+Rebuild the UE FFI bridge and replace its native runtime copies together.
+
+The CPU runtime implements `SamplerType::TopP`; use `top_k: 1` with `TopP`
+for deterministic sampling. Explicit `TopK` and `Greedy` currently return an
+upstream unsupported-sampler error on CPU.
 
 ## Build Modes
 
@@ -74,8 +87,9 @@ The bundled runtime can be rebuilt on Apple Silicon macOS:
 scripts/prepare_litert_lm_darwin_arm64.sh
 ```
 
-The script downloads LiteRT-LM `v0.13.1` into `.litert-lm-build/`, builds a
-shared CPU C API library with Bazel/Bazelisk, copies it into
+The script requires Git LFS and Bazel/Bazelisk. It downloads LiteRT-LM `v0.17.0`
+into `.litert-lm-build/LiteRT-LM-v0.17.0/`, builds a shared CPU C API library,
+fetches platform-specific LFS dependencies, and copies the libraries into
 `litert-lm-edge-sys/vendor/darwin-arm64/`, and writes `VERSION` plus
 `SHA256SUMS`.
 
@@ -119,18 +133,15 @@ scripts and runtime workflows, then rebuild and verify every checked-in
 fixed: GitHub's Windows runner may fetch Bazel `http_archive` dependencies from
 different mirrors or caches.
 
-The `v0.13.1` upgrade exposed this exact failure on Windows: LiteRT-LM's
-`WORKSPACE` referenced `https://zlib.net/fossils/zlib-1.3.1.tar.gz` with a
-fixed SHA256, but the downloaded archive did not match that checksum. The
-preparation scripts patch that upstream `minizip` archive to use Bazel `urls`
-fallbacks, with the GitHub zlib release URL first, before Bazel analysis starts.
-Keep that patch in sync when upstream changes the archive block.
+Upstream v0.17.0 already includes mirror URLs for the `minizip` archive;
+the v0.13.1 local URL patch is no longer needed. Source caches are versioned
+so upgrading does not overwrite a previously patched checkout.
 
 For each upgrade:
 
-1. Compare upstream `c/engine.h` against the previous tag and add new raw FFI
-   symbols, platform export lists, and safe wrappers only when the bundled
-   runtimes all export the symbol.
+1. Compare upstream `c/engine.h` and `c/conversation.h` against the previous
+   tag. Regenerate raw FFI bindings and verify that every declared symbol is
+   exported by all bundled runtimes. macOS exports are derived from these headers.
 2. Run the Windows and Linux runtime workflows from GitHub before copying their
    artifacts into `vendor/`.
 3. After copying Windows artifacts on macOS or Linux, normalize text files if
@@ -141,6 +152,8 @@ For each upgrade:
 5. Finish with `cargo fmt --all --check`, `cargo check --workspace
    --all-targets`, `git diff --check`, and checksum verification for every
    `vendor/<target>/SHA256SUMS`.
+6. Exercise generation and streaming with both default and `generate-bindings`
+   builds, and rebuild the UE bridge before updating its ThirdParty libraries.
 
 ## Usage
 

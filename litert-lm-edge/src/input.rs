@@ -41,7 +41,9 @@ pub(crate) struct OwnedInputs {
 
 impl OwnedInputs {
     pub(crate) fn new(inputs: &[InputData]) -> Result<Self> {
-        let mut owned = Self { ffi: Vec::with_capacity(inputs.len()) };
+        let mut owned = Self {
+            ffi: Vec::with_capacity(inputs.len()),
+        };
         for input in inputs {
             let file_bytes;
             let (kind, bytes): (_, &[u8]) = match input {
@@ -60,7 +62,9 @@ impl OwnedInputs {
                 InputData::AudioEnd => (ffi::kLiteRtLmInputDataTypeAudioEnd, &[]),
             };
             // SAFETY: the constructor copies bytes before returning; end markers ignore them.
-            let raw = unsafe { ffi::litert_lm_input_data_create(kind, bytes.as_ptr().cast(), bytes.len()) };
+            let raw = unsafe {
+                ffi::litert_lm_input_data_create(kind, bytes.as_ptr().cast(), bytes.len())
+            };
             if raw.is_null() {
                 return Err(Error::NullPointer("litert_lm_input_data_create"));
             }

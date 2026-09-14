@@ -2,8 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-LiteRT-LM C API 的 Rust 绑定。这个 workspace 绑定的是 `c/engine.h`
-里稳定的 C ABI，不直接绑定 C++ 类。
+LiteRT-LM C API 的 Rust 绑定。这个 workspace 绑定 `c/engine.h` 和
+`c/conversation.h` 中的 C API，不直接绑定 C++ 类。
 
 ## Crates
 
@@ -23,7 +23,13 @@ litert-lm-edge-sys/vendor/windows-x86_64/litert_lm_c_api.lib
 
 这些目标平台上的使用者不需要设置 `LITERT_LM_LIB_DIR`、`LITERT_LM_LINK_LIB`，也不需要安装 Bazel 或下载 LiteRT-LM 源码。运行时只需要提供 `.litertlm` 模型文件。其他平台需要使用 `system` 模式。
 
-每个已提交 runtime 的精确上游 tag 记录在 `litert-lm-edge-sys/vendor/<target>/VERSION`。runtime 准备脚本和 workflow 默认使用 `google-ai-edge/LiteRT-LM` `v0.13.1`，构建目标是 CPU-only C API。Rust API 暴露了 GPU、Metal、NPU、vision 和 audio 相关设置，但默认打包 runtime 以 CPU 优先。需要自定义 accelerator 时，请使用 `system` 模式链接自己的 native build。
+每个已提交 runtime 的精确上游 tag 记录在 `litert-lm-edge-sys/vendor/<target>/VERSION`。runtime 准备脚本和 workflow 默认使用 `google-ai-edge/LiteRT-LM` `v0.17.0`，构建目标是 CPU-only C API。Rust API 暴露了 GPU、Metal、NPU、vision 和 audio 相关设置，但默认打包 runtime 以 CPU 优先。需要自定义 accelerator 时，请使用 `system` 模式链接自己的 native build。
+
+### SDK 0.2 迁移说明
+
+SDK 0.2 对应 LiteRT-LM v0.17.0。Rust 安全封装 API 保持不变，但 `litert-lm-edge-sys` 的原始 ABI 与 v0.13.1 不兼容：输入和采样参数改为不透明原生对象，生成接口接收输入指针数组，流式回调接收 `LiteRtLmStreamChunk` 对象。包括 `system` 模式在内，不得混用旧版原生库。UE FFI 桥接库也必须重新构建，并与其原生运行库副本一起替换。
+
+CPU runtime 实现的是 `SamplerType::TopP`；需要确定性采样时可使用 `TopP` 配合 `top_k: 1`。显式使用 `TopK` 或 `Greedy` 时，上游 CPU runtime 当前会返回不支持该 sampler 的错误。
 
 ## 构建模式
 
@@ -65,7 +71,7 @@ Apple Silicon macOS 上可以重新构建打包 runtime：
 scripts/prepare_litert_lm_darwin_arm64.sh
 ```
 
-脚本会把 LiteRT-LM `v0.13.1` 下载到 `.litert-lm-build/`，用 Bazel/Bazelisk 构建共享 CPU C API 库，把产物复制到 `litert-lm-edge-sys/vendor/darwin-arm64/`，并写入 `VERSION` 和 `SHA256SUMS`。
+脚本需要 Git LFS 和 Bazel/Bazelisk，会把 LiteRT-LM `v0.17.0` 下载到 `.litert-lm-build/LiteRT-LM-v0.17.0/`，获取目标平台的 LFS 依赖，构建共享 CPU C API 库，把产物复制到 `litert-lm-edge-sys/vendor/darwin-arm64/`，并写入 `VERSION` 和 `SHA256SUMS`。
 
 Windows runtime 必须在 Windows x86_64 和 MSVC Build Tools 环境中构建：
 
@@ -99,15 +105,16 @@ scripts/prepare_litert_lm_linux_x86_64.sh
 
 升级打包 LiteRT-LM runtime 时，先同时更新所有准备脚本和 runtime workflow 里的 tag，然后分别重建并确认每个已提交的 `vendor/<target>/VERSION`。不要把 Linux 成功当成 Windows 已经没问题：GitHub Windows runner 可能从不同镜像或 Bazel cache 获取 `http_archive` 依赖。
 
-这次 `v0.13.1` 升级暴露的问题就是 Windows 专有触发：LiteRT-LM 的 `WORKSPACE` 用固定 SHA256 引用了 `https://zlib.net/fossils/zlib-1.3.1.tar.gz`，但实际下载到的 archive 和该 checksum 不一致。准备脚本会在 Bazel analysis 前把上游 `minizip` archive patch 成 Bazel `urls` fallback 列表，并把 GitHub zlib release URL 放在第一位。以后上游调整这个 archive block 时，需要同步检查这个 patch。
+上游 v0.17.0 已为 `minizip` archive 配置镜像 URL，不再需要 v0.13.1 的本地 URL patch。源码缓存按版本隔离，升级不会覆盖之前已打过补丁的 checkout。
 
 每次升级按这个顺序检查：
 
-1. 对比新旧 tag 的 upstream `c/engine.h`，只在所有打包 runtime 都导出对应符号后，再添加 raw FFI、平台 export list 和 safe wrapper。
+1. 对比新旧 tag 的 `c/engine.h` 和 `c/conversation.h`，重新生成 raw FFI，并确认所有打包 runtime 都导出了声明的符号。macOS export list 直接从这两个头文件生成。
 2. 先在 GitHub 上分别跑 Windows 和 Linux runtime workflow，成功后再把 artifact 复制进 `vendor/`。
 3. 在 macOS 或 Linux 上复制 Windows artifact 后，必要时规范化文本文件换行，再运行 `shasum -a 256 -c SHA256SUMS`；PowerShell 生成的文件可能带 CRLF。
 4. 检查重建后的库是否真的导出了预期 C API，尤其是本次新增的符号。
 5. 最后跑 `cargo fmt --all --check`、`cargo check --workspace --all-targets`、`git diff --check`，并校验每个 `vendor/<target>/SHA256SUMS`。
+6. 分别使用默认绑定和 `generate-bindings` 构建验证实际生成、流式调用；更新 UE ThirdParty 库前必须重新构建 UE FFI 桥接库。
 
 ## 使用方式
 

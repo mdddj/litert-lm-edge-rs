@@ -14,6 +14,10 @@ jobs:
         shell: pwsh
         run: rustup target add x86_64-pc-windows-msvc
 
+      - name: Test SDK against bundled runtime
+        shell: pwsh
+        run: cargo test --workspace --features tokio,model-download
+
       - name: Build UE FFI bridge
         shell: pwsh
         run: scripts/build_ue_plugin_win64.ps1 -StageRoot artifacts/LiteRtLmEdge

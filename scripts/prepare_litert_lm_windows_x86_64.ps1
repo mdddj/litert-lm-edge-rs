@@ -7,7 +7,7 @@ $CacheDir = if ($env:LITERT_LM_BUILD_CACHE) { $env:LITERT_LM_BUILD_CACHE } else 
 $BazelOutputUserRoot = if ($env:BAZEL_OUTPUT_USER_ROOT) { $env:BAZEL_OUTPUT_USER_ROOT } else { "C:\bzl" }
 $BazelDiskCache = if ($env:BAZEL_DISK_CACHE) { $env:BAZEL_DISK_CACHE } else { "C:\bazel-disk-cache" }
 $BazelRepositoryCache = if ($env:BAZEL_REPOSITORY_CACHE) { $env:BAZEL_REPOSITORY_CACHE } else { "C:\bazel-repository-cache" }
-$SrcDir = Join-Path $CacheDir "LiteRT-LM"
+$SrcDir = Join-Path $CacheDir "LiteRT-LM-$Tag"
 $VendorDir = Join-Path $RootDir "litert-lm-edge-sys\vendor\windows-x86_64"
 $VendorBuildDir = Join-Path $SrcDir "litert_lm_c_api_vendor"
 $BuildFile = Join-Path $VendorBuildDir "BUILD.bazel"
@@ -141,14 +141,22 @@ foreach ($Name in @("ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_NDK_HOME", "AND
 
 New-Item -ItemType Directory -Force -Path $CacheDir, $VendorDir, $BazelOutputUserRoot, $BazelDiskCache, $BazelRepositoryCache | Out-Null
 
+git lfs version
+if ($LASTEXITCODE -ne 0) { throw "Git LFS is required to fetch the native runtime dependencies." }
+$env:GIT_LFS_SKIP_SMUDGE = "1"
+
 if (Test-Path (Join-Path $SrcDir ".git")) {
     git -C $SrcDir fetch --tags --depth 1 origin $Tag
 } else {
     git clone --depth 1 --branch $Tag $RepoUrl $SrcDir
 }
+if ($LASTEXITCODE -ne 0) { throw "Failed to fetch LiteRT-LM $Tag." }
 
 git -C $SrcDir checkout --detach $Tag
+if ($LASTEXITCODE -ne 0) { throw "Failed to check out LiteRT-LM $Tag." }
 $Commit = git -C $SrcDir rev-parse HEAD
+git -C $SrcDir lfs pull --include="prebuilt/windows_x86_64/*"
+if ($LASTEXITCODE -ne 0) { throw "Failed to fetch Windows native runtime dependencies." }
 
 Enable-EngineCpuAlwaysLink -BuildFile (Join-Path $SrcDir "c\BUILD")
 

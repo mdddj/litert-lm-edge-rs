@@ -5,7 +5,7 @@ TAG="${LITERT_LM_TAG:-v0.17.0}"
 REPO_URL="${LITERT_LM_REPO_URL:-https://github.com/google-ai-edge/LiteRT-LM.git}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${LITERT_LM_BUILD_CACHE:-${ROOT_DIR}/.litert-lm-build}"
-SRC_DIR="${CACHE_DIR}/LiteRT-LM"
+SRC_DIR="${CACHE_DIR}/LiteRT-LM-${TAG}"
 VENDOR_DIR="${ROOT_DIR}/litert-lm-edge-sys/vendor/darwin-arm64"
 VENDOR_BUILD_DIR="${SRC_DIR}/litert_lm_c_api_vendor"
 BUILD_FILE="${VENDOR_BUILD_DIR}/BUILD.bazel"
@@ -26,6 +26,9 @@ else
   exit 1
 fi
 
+git lfs version >/dev/null
+export GIT_LFS_SKIP_SMUDGE=1
+
 
 mkdir -p "${CACHE_DIR}" "${VENDOR_DIR}"
 
@@ -37,6 +40,7 @@ fi
 
 git -C "${SRC_DIR}" checkout --detach "${TAG}"
 COMMIT="$(git -C "${SRC_DIR}" rev-parse HEAD)"
+git -C "${SRC_DIR}" lfs pull --include="prebuilt/macos_arm64/*"
 
 
 mkdir -p "${VENDOR_BUILD_DIR}"

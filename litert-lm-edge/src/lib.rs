@@ -310,8 +310,8 @@ impl<'engine> Session<'engine> {
 
     pub fn generate_content(&mut self, inputs: &[InputData]) -> Result<String> {
         let input = input::OwnedInputs::new(inputs)?;
-        // SAFETY: self.raw is a valid session. input.as_ffi() points at bytes owned by input,
-        // which remain live until the blocking call returns. LiteRT-LM returns an owned
+        // SAFETY: self.raw is a valid session. input owns the native input objects and
+        // their pointer array until the blocking call returns. LiteRT-LM returns an owned
         // responses object that must be deleted with litert_lm_responses_delete.
         let raw = unsafe {
             ffi::litert_lm_session_generate_content(
@@ -452,7 +452,6 @@ impl PartialEq for SessionConfig {
     }
 }
 
-
 struct Responses {
     raw: NonNull<ffi::LiteRtLmResponses>,
 }
@@ -518,5 +517,4 @@ mod tests {
         };
         assert!(matches!(err, Error::Nul(_)));
     }
-
 }
