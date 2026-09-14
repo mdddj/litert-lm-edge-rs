@@ -195,6 +195,7 @@ pub extern "C" fn litert_lm_edge_ue_stream_free(handle: *mut LiteRtLmEdgeStreamH
 }
 
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn litert_lm_edge_ue_conversation_create(
     model_path: *const c_char,
     backend: *const c_char,
@@ -569,6 +570,7 @@ fn parse_multimodal_stream_request(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_conversation_request(
     model_path: *const c_char,
     backend: *const c_char,
