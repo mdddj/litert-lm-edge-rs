@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TAG="${LITERT_LM_TAG:-v0.13.1}"
+TAG="${LITERT_LM_TAG:-v0.17.0}"
 REPO_URL="${LITERT_LM_REPO_URL:-https://github.com/google-ai-edge/LiteRT-LM.git}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${LITERT_LM_BUILD_CACHE:-${ROOT_DIR}/.litert-lm-build}"
@@ -26,31 +26,6 @@ else
   exit 1
 fi
 
-use_stable_minizip_urls() {
-  local workspace_file="$1"
-  python3 - "$workspace_file" <<'PY'
-import pathlib
-import sys
-
-path = pathlib.Path(sys.argv[1])
-text = path.read_text()
-old = '    url = "https://zlib.net/fossils/zlib-1.3.1.tar.gz",'
-new = '''    urls = [
-        "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz",
-        "https://www.zlib.net/fossils/zlib-1.3.1.tar.gz",
-        "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
-    ],'''
-
-if new in text:
-    print("LiteRT-LM minizip archive already has fallback URLs.")
-    raise SystemExit(0)
-if old not in text:
-    raise SystemExit(f"Could not find the minizip archive URL in {path}")
-
-path.write_text(text.replace(old, new, 1))
-print("Patched LiteRT-LM minizip archive with fallback URLs.")
-PY
-}
 
 mkdir -p "${CACHE_DIR}" "${VENDOR_DIR}"
 
@@ -63,7 +38,6 @@ fi
 git -C "${SRC_DIR}" checkout --detach "${TAG}"
 COMMIT="$(git -C "${SRC_DIR}" rev-parse HEAD)"
 
-use_stable_minizip_urls "${SRC_DIR}/WORKSPACE"
 
 mkdir -p "${VENDOR_BUILD_DIR}"
 cat >"${EXPORTS_FILE}" <<'EOF'
@@ -119,6 +93,8 @@ _litert_lm_engine_settings_set_num_prefill_tokens
 _litert_lm_engine_settings_set_parallel_file_section_loading
 _litert_lm_engine_settings_set_prefill_chunk_size
 _litert_lm_engine_tokenize
+_litert_lm_input_data_create
+_litert_lm_input_data_delete
 _litert_lm_json_response_delete
 _litert_lm_json_response_get_string
 _litert_lm_responses_delete
@@ -131,6 +107,12 @@ _litert_lm_responses_get_token_scores_at
 _litert_lm_responses_has_score_at
 _litert_lm_responses_has_token_length_at
 _litert_lm_responses_has_token_scores_at
+_litert_lm_sampler_params_create
+_litert_lm_sampler_params_delete
+_litert_lm_sampler_params_set_top_k
+_litert_lm_sampler_params_set_top_p
+_litert_lm_sampler_params_set_temperature
+_litert_lm_sampler_params_set_seed
 _litert_lm_session_cancel_process
 _litert_lm_session_config_create
 _litert_lm_session_config_delete

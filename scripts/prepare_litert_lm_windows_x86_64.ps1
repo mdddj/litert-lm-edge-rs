@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$Tag = if ($env:LITERT_LM_TAG) { $env:LITERT_LM_TAG } else { "v0.13.1" }
+$Tag = if ($env:LITERT_LM_TAG) { $env:LITERT_LM_TAG } else { "v0.17.0" }
 $RepoUrl = if ($env:LITERT_LM_REPO_URL) { $env:LITERT_LM_REPO_URL } else { "https://github.com/google-ai-edge/LiteRT-LM.git" }
 $RootDir = Resolve-Path (Join-Path $PSScriptRoot "..")
 $CacheDir = if ($env:LITERT_LM_BUILD_CACHE) { $env:LITERT_LM_BUILD_CACHE } else { Join-Path $RootDir ".litert-lm-build" }
@@ -130,30 +130,6 @@ function Enable-EngineCpuAlwaysLink {
     Write-Host "Patched LiteRT-LM //c:engine_cpu with alwayslink = True so the C API exports are retained."
 }
 
-function Use-StableMinizipUrls {
-    param([string] $WorkspaceFile)
-
-    $Text = Get-Content -Raw $WorkspaceFile
-    $Old = '    url = "https://zlib.net/fossils/zlib-1.3.1.tar.gz",'
-    $New = @'
-    urls = [
-        "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz",
-        "https://www.zlib.net/fossils/zlib-1.3.1.tar.gz",
-        "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
-    ],
-'@
-
-    if ($Text.Contains($New)) {
-        Write-Host "LiteRT-LM minizip archive already has fallback URLs."
-        return
-    }
-    if (-not $Text.Contains($Old)) {
-        throw "Could not find the minizip archive URL in $WorkspaceFile."
-    }
-
-    Set-Content -NoNewline -Encoding UTF8 $WorkspaceFile ($Text.Replace($Old, $New))
-    Write-Host "Patched LiteRT-LM minizip archive with fallback URLs."
-}
 
 # GitHub's Windows runners preinstall Android SDK/NDK paths. LiteRT-LM's
 # WORKSPACE instantiates android_ndk_repository even for this Windows CPU build,
@@ -175,7 +151,6 @@ git -C $SrcDir checkout --detach $Tag
 $Commit = git -C $SrcDir rev-parse HEAD
 
 Enable-EngineCpuAlwaysLink -BuildFile (Join-Path $SrcDir "c\BUILD")
-Use-StableMinizipUrls -WorkspaceFile (Join-Path $SrcDir "WORKSPACE")
 
 New-Item -ItemType Directory -Force -Path $VendorBuildDir | Out-Null
 @'
