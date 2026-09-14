@@ -157,6 +157,25 @@ impl TextStream<'_> {
 
 unsafe extern "C" fn stream_callback(
     callback_data: *mut c_void,
+    chunk: *const ffi::LiteRtLmStreamChunk,
+) {
+    if chunk.is_null() {
+        return;
+    }
+    // SAFETY: LiteRT-LM owns chunk and keeps it valid for the callback duration.
+    let (text, is_final, error) = unsafe {
+        (
+            ffi::litert_lm_stream_chunk_get_text(chunk),
+            ffi::litert_lm_stream_chunk_is_final(chunk),
+            ffi::litert_lm_stream_chunk_get_error(chunk),
+        )
+    };
+    // SAFETY: the borrowed strings remain valid until this callback returns.
+    unsafe { dispatch_stream_event(callback_data, text, is_final, error) };
+}
+
+unsafe fn dispatch_stream_event(
+    callback_data: *mut c_void,
     chunk: *const c_char,
     is_final: bool,
     error_msg: *const c_char,
@@ -216,7 +235,7 @@ pub(crate) mod tests {
         // SAFETY: state is a valid StreamState for this test and CString pointers live for the
         // duration of the callback call.
         unsafe {
-            stream_callback(
+            dispatch_stream_event(
                 (state as *mut StreamState).cast(),
                 chunk
                     .as_ref()

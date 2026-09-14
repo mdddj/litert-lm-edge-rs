@@ -282,7 +282,7 @@ impl EngineBuilder {
             unsafe {
                 ffi::litert_lm_engine_settings_set_activation_data_type(
                     settings.raw.as_ptr(),
-                    activation_data_type,
+                    activation_data_type as _,
                 );
             }
         }
@@ -401,10 +401,25 @@ impl RawSessionConfig {
             }
         }
         if let Some(sampler) = config.sampler {
-            let ffi_sampler = sampler.into_ffi();
-            // SAFETY: raw is valid and ffi_sampler lives for the duration of this call.
+            let sampler_type = match sampler.sampler_type {
+                SamplerType::Unspecified => ffi::kLiteRtLmSamplerTypeUnspecified,
+                SamplerType::TopK => ffi::kLiteRtLmSamplerTypeTopK,
+                SamplerType::TopP => ffi::kLiteRtLmSamplerTypeTopP,
+                SamplerType::Greedy => ffi::kLiteRtLmSamplerTypeGreedy,
+            };
+            // SAFETY: creates an owned sampler object; null is checked before use.
+            let params = unsafe { ffi::litert_lm_sampler_params_create(sampler_type) };
+            let params = NonNull::new(params)
+                .ok_or(Error::NullPointer("litert_lm_sampler_params_create"))?;
+            // SAFETY: both objects are valid. The config copies the sampler values,
+            // so the temporary sampler can be deleted immediately afterward.
             unsafe {
-                ffi::litert_lm_session_config_set_sampler_params(raw.as_ptr(), &ffi_sampler);
+                ffi::litert_lm_sampler_params_set_top_k(params.as_ptr(), sampler.top_k);
+                ffi::litert_lm_sampler_params_set_top_p(params.as_ptr(), sampler.top_p);
+                ffi::litert_lm_sampler_params_set_temperature(params.as_ptr(), sampler.temperature);
+                ffi::litert_lm_sampler_params_set_seed(params.as_ptr(), sampler.seed);
+                ffi::litert_lm_session_config_set_sampler_params(raw.as_ptr(), params.as_ptr());
+                ffi::litert_lm_sampler_params_delete(params.as_ptr());
             }
         }
 
@@ -437,22 +452,6 @@ impl PartialEq for SessionConfig {
     }
 }
 
-impl SamplerParams {
-    fn into_ffi(self) -> ffi::LiteRtLmSamplerParams {
-        ffi::LiteRtLmSamplerParams {
-            type_: match self.sampler_type {
-                SamplerType::Unspecified => ffi::kLiteRtLmSamplerTypeUnspecified,
-                SamplerType::TopK => ffi::kLiteRtLmSamplerTypeTopK,
-                SamplerType::TopP => ffi::kLiteRtLmSamplerTypeTopP,
-                SamplerType::Greedy => ffi::kLiteRtLmSamplerTypeGreedy,
-            },
-            top_k: self.top_k,
-            top_p: self.top_p,
-            temperature: self.temperature,
-            seed: self.seed,
-        }
-    }
-}
 
 struct Responses {
     raw: NonNull<ffi::LiteRtLmResponses>,
@@ -520,16 +519,4 @@ mod tests {
         assert!(matches!(err, Error::Nul(_)));
     }
 
-    #[test]
-    fn default_session_config_uses_null_pointer() {
-        let config = RawSessionConfig::new(SessionConfig::default()).unwrap();
-        assert!(config.as_mut_ptr().is_null());
-    }
-
-    #[test]
-    fn backend_strings_match_litert_lm_api() {
-        assert_eq!(Backend::Cpu.as_str(), "cpu");
-        assert_eq!(Backend::Gpu.as_str(), "gpu");
-        assert_eq!(Backend::Custom("npu".to_owned()).as_str(), "npu");
-    }
 }

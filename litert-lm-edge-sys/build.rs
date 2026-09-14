@@ -184,7 +184,7 @@ fn generate_bindings() {
             "LITERT_LM_ROOT must point to a LiteRT-LM checkout when generate-bindings is enabled"
         )
     });
-    let header = Path::new(&root).join("c").join("engine.h");
+    let header = Path::new(&root).join("c").join("conversation.h");
     println!("cargo:rerun-if-changed={}", header.display());
 
     let mut builder = bindgen::Builder::default()
@@ -192,6 +192,7 @@ fn generate_bindings() {
         .allowlist_function("litert_lm_.*")
         .allowlist_type("LiteRtLm.*")
         .allowlist_var("kLiteRtLm.*")
+        .prepend_enum_name(false)
         .layout_tests(false)
         .derive_debug(true)
         .derive_default(true)
