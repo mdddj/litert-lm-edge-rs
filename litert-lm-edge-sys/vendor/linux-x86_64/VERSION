@@ -1,7 +1,7 @@
-LiteRT-LM tag: v0.13.1
-LiteRT-LM commit: a0afb5a56acd106b23a2b2385b8469834dc268c0
+LiteRT-LM tag: v0.17.1
+LiteRT-LM commit: 5e58e9a0aef7abf7091207a8b1d1063a1c800f08
 Target: x86_64-unknown-linux-gnu
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Bazel command: bazelisk --output_user_root=/tmp/bzl build //litert_lm_c_api_vendor:litert_lm_c_api_vendor --config=linux --action_env=PATH --action_env=CC=/usr/bin/clang-18 --action_env=CXX=/usr/bin/clang++-18 --repo_env=PATH --repo_env=CC=/usr/bin/clang-18 --repo_env=CXX=/usr/bin/clang++-18 --disk_cache=/tmp/bazel-disk-cache --repository_cache=/tmp/bazel-repository-cache
 Library: liblitert_lm_c_api.so
-Generated: 2026-06-04T07:45:23Z
+Generated: 2026-09-17T02:35:04Z
