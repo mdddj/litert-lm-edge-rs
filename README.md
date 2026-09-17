@@ -29,14 +29,15 @@ That means users on those targets do not need `LITERT_LM_LIB_DIR`,
 
 The exact upstream tag for each checked-in runtime is recorded in
 `litert-lm-edge-sys/vendor/<target>/VERSION`. The runtime preparation scripts
-and workflows default to `google-ai-edge/LiteRT-LM` `v0.17.0` with the CPU-only
+and workflows default to `google-ai-edge/LiteRT-LM` `v0.17.1` with the CPU-only
 C API target. GPU, Metal, NPU, vision, and audio settings are exposed in Rust,
 but the bundled runtimes are intentionally CPU-first. Use `system` mode for a
 custom native build.
 
 ### SDK 0.2 migration
 
-SDK 0.2 targets LiteRT-LM v0.17.0. The safe Rust API is unchanged, but the raw
+SDK 0.2.1 targets LiteRT-LM v0.17.1 and includes its fix for preserving integer
+types in tool-call arguments. The safe Rust API is unchanged, but the raw
 `litert-lm-edge-sys` ABI is incompatible with v0.13.1: inputs and sampler
 parameters are opaque native objects, generation takes an array of input
 pointers, and streaming callbacks receive `LiteRtLmStreamChunk` objects.
@@ -87,8 +88,8 @@ The bundled runtime can be rebuilt on Apple Silicon macOS:
 scripts/prepare_litert_lm_darwin_arm64.sh
 ```
 
-The script requires Git LFS and Bazel/Bazelisk. It downloads LiteRT-LM `v0.17.0`
-into `.litert-lm-build/LiteRT-LM-v0.17.0/`, builds a shared CPU C API library,
+The script requires Git LFS and Bazel/Bazelisk. It downloads LiteRT-LM `v0.17.1`
+into `.litert-lm-build/LiteRT-LM-v0.17.1/`, builds a shared CPU C API library,
 fetches platform-specific LFS dependencies, and copies the libraries into
 `litert-lm-edge-sys/vendor/darwin-arm64/`, and writes `VERSION` plus
 `SHA256SUMS`.
@@ -133,7 +134,7 @@ scripts and runtime workflows, then rebuild and verify every checked-in
 fixed: GitHub's Windows runner may fetch Bazel `http_archive` dependencies from
 different mirrors or caches.
 
-Upstream v0.17.0 already includes mirror URLs for the `minizip` archive;
+Upstream v0.17.1 includes mirror URLs for the `minizip` archive;
 the v0.13.1 local URL patch is no longer needed. Source caches are versioned
 so upgrading does not overwrite a previously patched checkout.
 

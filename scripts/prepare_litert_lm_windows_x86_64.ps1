@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$Tag = if ($env:LITERT_LM_TAG) { $env:LITERT_LM_TAG } else { "v0.17.0" }
+$Tag = if ($env:LITERT_LM_TAG) { $env:LITERT_LM_TAG } else { "v0.17.1" }
 $RepoUrl = if ($env:LITERT_LM_REPO_URL) { $env:LITERT_LM_REPO_URL } else { "https://github.com/google-ai-edge/LiteRT-LM.git" }
 $RootDir = Resolve-Path (Join-Path $PSScriptRoot "..")
 $CacheDir = if ($env:LITERT_LM_BUILD_CACHE) { $env:LITERT_LM_BUILD_CACHE } else { Join-Path $RootDir ".litert-lm-build" }
