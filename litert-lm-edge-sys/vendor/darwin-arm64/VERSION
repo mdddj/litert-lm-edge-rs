@@ -1,7 +1,7 @@
-LiteRT-LM tag: v0.17.0
-LiteRT-LM commit: e9fd8c53ff968071774206163027dd84bedfe925
+LiteRT-LM tag: v0.17.1
+LiteRT-LM commit: 5e58e9a0aef7abf7091207a8b1d1063a1c800f08
 Target: aarch64-apple-darwin
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Bazel command: bazelisk build //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Library: liblitert_lm_c_api.dylib
-Generated: 2026-09-14T03:59:11Z
+Generated: 2026-09-17T02:06:28Z
