@@ -144,3 +144,20 @@ jobs:
             exit 1
           fi
 
+      - name: Narrow the exit-time segfault
+        # Records which API call introduces the crash so the upstream report can
+        # be specific: pure load, settings create, settings teardown, or the
+        # engine path. Never fails the job; the point is the table.
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="${RUNNER_TEMP}/consumer/target/debug"
+          for mode in 0 1 2 3; do
+            set +e
+            env -u LD_LIBRARY_PATH -u LD_PRELOAD "${dir}/repro" "${mode}" >/dev/null 2>&1
+            status=$?
+            set -e
+            printf 'mode %s -> exit status %s\n' "${mode}" "${status}"
+          done
+
