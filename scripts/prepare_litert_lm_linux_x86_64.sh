@@ -123,7 +123,12 @@ EOF
 rm -f "${VENDOR_DIR}"/*.so
 install -m 755 "${SRC_DIR}/bazel-bin/litert_lm_c_api_vendor/liblitert_lm_c_api_vendor.so" \
   "${VENDOR_DIR}/${LIB_NAME}"
-patchelf --set-soname "${LIB_NAME}" --set-rpath '$ORIGIN' "${VENDOR_DIR}/${LIB_NAME}"
+# The soname embeds $ORIGIN so that a binary linking this library records a
+# resolvable DT_NEEDED of $ORIGIN/liblitert_lm_c_api.so. The loader then looks
+# next to the executable, which is where copy_vendor_runtimes_to_target_dirs
+# puts every runtime, so consumers need no rpath of their own. The rpath stays
+# $ORIGIN so this library finds libGemmaModelConstraintProvider.so alongside it.
+patchelf --set-soname "\$ORIGIN/${LIB_NAME}" --set-rpath '$ORIGIN' "${VENDOR_DIR}/${LIB_NAME}"
 
 PREBUILT_DIR="${SRC_DIR}/prebuilt/linux_x86_64"
 for so in \
@@ -150,6 +155,7 @@ Target: x86_64-unknown-linux-gnu
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Bazel command: ${BAZEL[*]} --output_user_root=${BAZEL_OUTPUT_USER_ROOT} build //litert_lm_c_api_vendor:litert_lm_c_api_vendor --config=linux --action_env=PATH --action_env=CC=${CC} --action_env=CXX=${CXX} --repo_env=PATH --repo_env=CC=${CC} --repo_env=CXX=${CXX} --disk_cache=${BAZEL_DISK_CACHE} --repository_cache=${BAZEL_REPOSITORY_CACHE}
 Library: ${LIB_NAME}
+Soname: $ORIGIN/${LIB_NAME}
 Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 EOF
 

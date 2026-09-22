@@ -4,4 +4,5 @@ Target: x86_64-unknown-linux-gnu
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Bazel command: bazelisk --output_user_root=/tmp/bzl build //litert_lm_c_api_vendor:litert_lm_c_api_vendor --config=linux --action_env=PATH --action_env=CC=/usr/bin/clang-18 --action_env=CXX=/usr/bin/clang++-18 --repo_env=PATH --repo_env=CC=/usr/bin/clang-18 --repo_env=CXX=/usr/bin/clang++-18 --disk_cache=/tmp/bazel-disk-cache --repository_cache=/tmp/bazel-repository-cache
 Library: liblitert_lm_c_api.so
+Soname: $ORIGIN/liblitert_lm_c_api.so
 Generated: 2026-09-17T02:35:04Z
