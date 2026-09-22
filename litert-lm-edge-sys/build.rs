@@ -12,8 +12,9 @@ use sha2::{Digest, Sha256};
 // therefore carries an `@loader_path/liblitert_lm_c_api.dylib` install name:
 // the loader resolves it against the directory of the binary that loads it,
 // which is exactly where `copy_vendor_runtimes_to_target_dirs` puts every
-// runtime. No rpath is needed. Linux has no equivalent, so consumers that ship
-// a binary must add `-Wl,-rpath,$ORIGIN` themselves; see the README.
+// runtime. No rpath is needed. The Linux library carries a
+// `$ORIGIN/liblitert_lm_c_api.so` soname for the same reason. Windows resolves
+// DLLs from the executable's directory by default.
 
 /// Platforms with a published runtime asset, matching Cargo feature names and
 /// the `vendor/<platform>` directory layout.

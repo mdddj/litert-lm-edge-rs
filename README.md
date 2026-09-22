@@ -102,19 +102,28 @@ not, so copy the runtimes next to the executable:
 | Platform | Shipped alongside the executable | Extra link flag |
 | --- | --- | --- |
 | macOS | `liblitert_lm_c_api.dylib`, `libGemmaModelConstraintProvider.dylib` | none |
-| Linux | `liblitert_lm_c_api.so` plus the `libLiteRt*.so` files | `-Wl,-rpath,$ORIGIN` |
+| Linux | `liblitert_lm_c_api.so` plus the `libLiteRt*.so` files | none |
 | Windows | `litert_lm_c_api.dll` plus the other `*.dll` files | none |
 
-The `litert-lm-edge-sys` build script already copies every runtime into the
-profile directory (`target/<profile>/`), which is where the executable ends up. macOS needs no link flag because the dylib install name is
-`@loader_path/liblitert_lm_c_api.dylib`. Linux has no equivalent, and a
-dependency cannot inject an rpath into your binary, so add the flag yourself:
+The `litert-lm-edge-sys` build script copies every runtime into the profile
+directory (`target/<profile>/`), which is where the executable ends up. The
+loaders then find them without help from your build: the macOS dylib carries an
+`@loader_path/liblitert_lm_c_api.dylib` install name, and the Linux library
+carries a `$ORIGIN/liblitert_lm_c_api.so` soname. Neither depends on an rpath,
+which matters because a dependency cannot inject one into your binary.
 
-```toml
-# .cargo/config.toml
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "link-arg=-Wl,-rpath,$ORIGIN"]
-```
+A consumer that builds its own runtime set can still add
+`-Wl,-rpath,$ORIGIN` on Linux as belt-and-braces.
+
+#### Known issue: Linux exit-time segfault
+
+On Linux the process segfaults while tearing down static state after `main`
+returns, so it exits with status 139 and may dump core. It reproduces with the
+untouched `v0.2.2` runtime under `LD_LIBRARY_PATH`, so it comes from the
+upstream LiteRT-LM `v0.17.1` Linux build rather than from this crate, and it
+does not happen on macOS. The `.github/workflows/consumer-smoke.yml` job
+records it as a warning instead of a failure. A rebuild of the Linux runtime
+may clear it; see the runtime upgrade checklist.
 
 System runtime for custom LiteRT-LM builds or other platforms:
 

@@ -82,72 +82,30 @@ jobs:
         run: |
           set -euo pipefail
           binary="${RUNNER_TEMP}/consumer/target/debug/consumer"
-          env -u LD_LIBRARY_PATH -u LD_PRELOAD \
-              -u DYLD_LIBRARY_PATH -u DYLD_FALLBACK_LIBRARY_PATH \
-              "${binary}"
+          set +e
+          output=$(env -u LD_LIBRARY_PATH -u LD_PRELOAD \
+                       -u DYLD_LIBRARY_PATH -u DYLD_FALLBACK_LIBRARY_PATH \
+                       "${binary}" 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "${output}"
 
-  # TEMPORARY diagnostic job: is the Linux exit-time segfault caused by the
-  # patchelf rewrite, or does the original v0.2.2 runtime do it too? Delete
-  # before merging.
-  baseline:
-    name: Segfault baseline (ubuntu-22.04)
-    runs-on: ubuntu-22.04
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
+          # Reaching the runtime proves the loader resolved the library, which is
+          # the whole point of this job. A silent early exit would not.
+          grep -q "runtime loaded, missing model rejected" <<<"${output}"
 
-      - uses: dtolnay/rust-toolchain@stable
+          if [[ ${status} -ne 0 ]]; then
+            # Known upstream LiteRT-LM v0.17.1 defect: on Linux the process
+            # segfaults while tearing down static state after main returns. It
+            # reproduces with the untouched v0.2.2 runtime under LD_LIBRARY_PATH,
+            # so it is not caused by this repo, and it does not happen on macOS.
+            # Rebuilding the Linux runtime may resolve it; see the runtime
+            # upgrade checklist. Any other status is a real regression.
+            if [[ ${status} -eq 139 ]]; then
+              echo "::warning::known upstream Linux exit-time segfault (139)"
+            else
+              echo "unexpected exit status ${status}"
+              exit 1
+            fi
+          fi
 
-      - name: Build a downstream crate
-        shell: bash
-        run: |
-          set -euo pipefail
-          crate="${RUNNER_TEMP}/consumer"
-          cargo new --bin "${crate}"
-          cd "${crate}"
-          cargo add litert-lm-edge --path "${GITHUB_WORKSPACE}/litert-lm-edge"
-          cat > src/main.rs <<'RUST'
-          fn main() {
-              match litert_lm_edge::Engine::builder("/nonexistent/model.litertlm").build() {
-                  Ok(_) => panic!("unexpectedly built an engine from a missing model"),
-                  Err(error) => println!("runtime loaded, missing model rejected: {error}"),
-              }
-          }
-          RUST
-
-      - name: Patched soname, no loader hints
-        shell: bash
-        continue-on-error: true
-        run: |
-          set -uo pipefail
-          crate="${RUNNER_TEMP}/consumer"
-          cd "${crate}"
-          cargo build -q
-          env -u LD_LIBRARY_PATH -u LD_PRELOAD "${crate}/target/debug/consumer"
-          echo "exit=$?"
-
-      - name: Patched soname, LD_LIBRARY_PATH set
-        shell: bash
-        continue-on-error: true
-        run: |
-          set -uo pipefail
-          crate="${RUNNER_TEMP}/consumer"
-          vendor="${GITHUB_WORKSPACE}/litert-lm-edge-sys/vendor/linux-x86_64"
-          LD_LIBRARY_PATH="${vendor}" "${crate}/target/debug/consumer"
-          echo "exit=$?"
-
-      - name: Original v0.2.2 soname, LD_LIBRARY_PATH set
-        shell: bash
-        continue-on-error: true
-        run: |
-          set -uo pipefail
-          crate="${RUNNER_TEMP}/consumer"
-          vendor="${GITHUB_WORKSPACE}/litert-lm-edge-sys/vendor/linux-x86_64"
-          curl -fsSL -o "${RUNNER_TEMP}/orig.tar.gz" \
-            https://github.com/mdddj/litert-lm-edge-rs/releases/download/v0.2.2/litert-lm-runtime-linux-x86_64.tar.gz
-          tar -xzf "${RUNNER_TEMP}/orig.tar.gz" -C "${RUNNER_TEMP}"
-          cp -a "${RUNNER_TEMP}/linux-x86_64/." "${vendor}/"
-          cd "${crate}"
-          cargo build -q
-          LD_LIBRARY_PATH="${vendor}" "${crate}/target/debug/consumer"
-          echo "exit=$?"
