@@ -7,6 +7,8 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 build = "build.rs"
+# Distributed as an Unreal Engine plugin on GitHub Releases, not as a Rust crate.
+publish = false
 
 [lib]
 name = "litert_lm_edge_ue_ffi"

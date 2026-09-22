@@ -57,6 +57,42 @@ cargo check --workspace
 cargo run -p litert-lm-edge --example simple_generate -- /path/to/model.litertlm "你好"
 ```
 
+### Downloading The Bundled Runtime
+
+The runtimes are ~200 MB per crate, so they are excluded from the published
+`litert-lm-edge-sys` package and shipped as GitHub Release assets instead. When
+`litert-lm-edge-sys/vendor/<target>/` is absent, the build script downloads the
+archive that the crate version points at:
+
+```bash
+cargo build -p litert-lm-edge
+
+# mirror or a local fixture directory
+export LITERT_LM_RUNTIME_BASE_URL=https://example.com/litert-lm-runtime
+
+# refuse to download (air-gapped or vendored builds)
+export LITERT_LM_RUNTIME_OFFLINE=1
+```
+
+A local `vendor/<target>/` directory always takes precedence, so the
+`scripts/prepare_litert_lm_*` development flow stays network-free. Downloads go
+to the shared `target/litert-lm-runtime` cache; relocate it with
+`LITERT_LM_RUNTIME_CACHE_DIR`.
+
+Every archive must match the SHA-256 pin in
+`litert-lm-edge-sys/runtime-checksums.txt` and the `SHA256SUMS` manifest inside
+the archive. A mismatch aborts the build.
+
+Rebuild and republish the assets after changing a runtime:
+
+```bash
+python3 scripts/build_runtime_assets.py
+gh release upload v0.2.1 dist/runtime/*.tar.gz --clobber
+```
+
+Then update the platform hashes in `litert-lm-edge-sys/runtime-checksums.txt`
+with the values the script prints.
+
 System runtime for custom LiteRT-LM builds or other platforms:
 
 ```bash
@@ -155,6 +191,11 @@ For each upgrade:
    `vendor/<target>/SHA256SUMS`.
 6. Exercise generation and streaming with both default and `generate-bindings`
    builds, and rebuild the UE bridge before updating its ThirdParty libraries.
+7. Refresh the release runtime assets with
+   `python3 scripts/build_runtime_assets.py`, upload them with
+   `gh release upload v<crate version> dist/runtime/*.tar.gz --clobber`, and
+   update `litert-lm-edge-sys/runtime-checksums.txt`. Published crates fetch
+   these assets, so a stale asset silently ships an old runtime.
 
 ## Usage
 

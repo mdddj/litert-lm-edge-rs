@@ -4,3 +4,6 @@
 **/*.rs.bk
 models/
 .idea/
+/litert_lm_edge_ue
+/dist/
+.release/

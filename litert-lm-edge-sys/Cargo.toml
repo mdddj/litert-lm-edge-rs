@@ -8,6 +8,10 @@ license.workspace = true
 repository.workspace = true
 links = "litert_lm_c_api"
 build = "build.rs"
+# The bundled runtimes are ~200 MB per crate and far exceed the crates.io
+# 10 MB limit. They are published as GitHub Release assets instead and fetched
+# by build.rs when no local `vendor/<platform>` directory is present.
+exclude = ["vendor/**", "default.profraw"]
 
 [features]
 default = [
@@ -23,6 +27,9 @@ vendor-windows-x86_64 = []
 
 [build-dependencies]
 bindgen = { version = "0.71", optional = true }
+flate2 = "1"
+sha2 = "0.10"
+tar = "0.4"
 
 [lints]
 workspace = true

@@ -7,15 +7,15 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-litert-lm-edge = { path = "litert-lm-edge", default-features = false }
-litert-lm-edge-sys = { path = "litert-lm-edge-sys", default-features = false }
+litert-lm-edge = { version = "0.2.1", path = "litert-lm-edge", default-features = false }
+litert-lm-edge-sys = { version = "0.2.1", path = "litert-lm-edge-sys", default-features = false }
 
 [workspace.package]
 version = "0.2.1"
 edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
-repository = "https://github.com/google-ai-edge/LiteRT-LM"
+repository = "https://github.com/mdddj/litert-lm-edge-rs"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
