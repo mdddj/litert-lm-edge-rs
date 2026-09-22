@@ -1,0 +1,87 @@
+name: Consumer Smoke Test
+
+# Guards the thing a `cargo build` inside this repo cannot catch: whether a
+# binary built by a *downstream* crate still starts after cargo's loader
+# environment is gone. `cargo run` sets LD_LIBRARY_PATH / DYLD_FALLBACK_LIBRARY_PATH,
+# which hides a missing or unresolvable runtime, so the run step below
+# deliberately unsets them.
+#
+# The consumer crate resolves litert-lm-edge by path, but the native runtime is
+# fetched from the GitHub Release whose tag matches the workspace version. Bump
+# the version and publish the release assets before pushing, or this workflow
+# fails on the download.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "litert-lm-edge/**"
+      - "litert-lm-edge-sys/**"
+      - ".github/workflows/consumer-smoke.yml"
+  pull_request:
+    paths:
+      - "litert-lm-edge/**"
+      - "litert-lm-edge-sys/**"
+      - ".github/workflows/consumer-smoke.yml"
+
+jobs:
+  consumer:
+    name: Shipped binary (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            library: liblitert_lm_c_api.so
+          - os: macos-14
+            library: liblitert_lm_c_api.dylib
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build a downstream crate against this checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          crate="${RUNNER_TEMP}/consumer"
+          cargo new --bin "${crate}"
+          cd "${crate}"
+          cargo add litert-lm-edge --path "${GITHUB_WORKSPACE}/litert-lm-edge"
+          cat > src/main.rs <<'RUST'
+          fn main() {
+              // Touches the native runtime, so an unresolvable runtime aborts at
+              // process start instead of passing the smoke test silently.
+              match litert_lm_edge::Engine::builder("/nonexistent/model.litertlm").build() {
+                  Ok(_) => panic!("unexpectedly built an engine from a missing model"),
+                  Err(error) => println!("runtime loaded, missing model rejected: {error}"),
+              }
+          }
+          RUST
+          cargo build
+
+      - name: Assert the runtime is a load-time dependency
+        shell: bash
+        env:
+          LIBRARY: ${{ matrix.library }}
+        run: |
+          set -euo pipefail
+          binary="${RUNNER_TEMP}/consumer/target/debug/consumer"
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            otool -L "${binary}"
+            otool -L "${binary}" | grep -F "${LIBRARY}"
+          else
+            readelf -d "${binary}" | grep NEEDED
+            readelf -d "${binary}" | grep -F "${LIBRARY}"
+          fi
+
+      - name: Run with no loader hints
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="${RUNNER_TEMP}/consumer/target/debug/consumer"
+          env -u LD_LIBRARY_PATH -u LD_PRELOAD \
+              -u DYLD_LIBRARY_PATH -u DYLD_FALLBACK_LIBRARY_PATH \
+              "${binary}"
