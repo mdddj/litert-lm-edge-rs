@@ -109,3 +109,38 @@ jobs:
             fi
           fi
 
+      - name: Same test without Rust
+        # Ports the smoke test to plain C (scripts/linux-exit-crash-repro.c). If
+        # this crashes on exit the way the Rust binary does, the defect belongs
+        # to the native runtime and this file is the upstream reproduction.
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="${RUNNER_TEMP}/consumer/target/debug"
+          cc -O0 -Wall -Wextra -o "${dir}/repro" \
+            "${GITHUB_WORKSPACE}/scripts/linux-exit-crash-repro.c" \
+            -L"${dir}" -llitert_lm_c_api
+
+          # Same link-time contract as the Rust binary: the soname resolves the
+          # runtime next to the executable, so no LD_LIBRARY_PATH is needed.
+          readelf -d "${dir}/repro" | grep NEEDED
+
+          set +e
+          output=$(env -u LD_LIBRARY_PATH -u LD_PRELOAD "${dir}/repro" 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "${output}"
+          echo "exit status: ${status}"
+
+          grep -q "returning from main" <<<"${output}"
+
+          if [[ ${status} -eq 0 ]]; then
+            echo "plain C exits cleanly, so the crash involves the Rust side"
+          elif [[ ${status} -eq 139 ]]; then
+            echo "::notice::plain C reproduces the exit-time segfault, so the defect is upstream"
+          else
+            echo "unexpected exit status ${status}"
+            exit 1
+          fi
+
