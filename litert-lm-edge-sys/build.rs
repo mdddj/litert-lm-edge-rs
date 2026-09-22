@@ -5,6 +5,16 @@ use std::{env, fs};
 
 use sha2::{Digest, Sha256};
 
+// Runtime loading note
+//
+// `cargo:rustc-link-arg` applies only to the package that emits it, so a
+// dependency cannot inject an rpath into a downstream binary. The macOS dylib
+// therefore carries an `@loader_path/liblitert_lm_c_api.dylib` install name:
+// the loader resolves it against the directory of the binary that loads it,
+// which is exactly where `copy_vendor_runtimes_to_target_dirs` puts every
+// runtime. No rpath is needed. Linux has no equivalent, so consumers that ship
+// a binary must add `-Wl,-rpath,$ORIGIN` themselves; see the README.
+
 /// Platforms with a published runtime asset, matching Cargo feature names and
 /// the `vendor/<platform>` directory layout.
 const PLATFORM_DARWIN_ARM64: &str = "darwin-arm64";
@@ -102,8 +112,6 @@ fn link_vendor_darwin_arm64() {
     copy_vendor_runtimes_to_target_dirs(&vendor_dir);
     println!("cargo:rustc-link-search=native={}", vendor_dir.display());
     println!("cargo:rustc-link-lib=dylib=litert_lm_c_api");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor_dir.display());
 }
 
 fn link_vendor_linux_x86_64() {
@@ -123,8 +131,6 @@ fn link_vendor_linux_x86_64() {
     copy_vendor_runtimes_to_target_dirs(&vendor_dir);
     println!("cargo:rustc-link-search=native={}", vendor_dir.display());
     println!("cargo:rustc-link-lib=dylib=litert_lm_c_api");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor_dir.display());
 }
 
 fn link_vendor_windows_x86_64() {

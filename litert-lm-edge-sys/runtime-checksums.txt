@@ -9,6 +9,6 @@
 #
 # Format: <platform> <sha256>. A platform with no pinned hash falls back to the
 # SHA256SUMS manifest carried inside the tarball.
-darwin-arm64 d66db0bf00b0adeac4b61cfe997f615f286e349fe3770a08932140fa53b043eb
+darwin-arm64 4f85f770b84604f96f579f4e5c4fb20137db678e940a09cd64296690c90bbf47
 linux-x86_64 cfa44e07f031ba78b9df8b572c233198fc2ea78d4fa2a97ff15ad604c9d08bdd
 windows-x86_64 ac3ea47bce3e28c9b0342087c2d92a42b64dd8b51c014b56302ae41caea6a411

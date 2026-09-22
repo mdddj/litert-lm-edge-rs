@@ -93,6 +93,29 @@ gh release upload v0.2.1 dist/runtime/*.tar.gz --clobber
 Then update the platform hashes in `litert-lm-edge-sys/runtime-checksums.txt`
 with the values the script prints.
 
+### Shipping A Binary
+
+`cargo build` and `cargo run` work out of the box because cargo adds the target
+directory to the loader search path. A binary you hand to someone else does
+not, so copy the runtimes next to the executable:
+
+| Platform | Shipped alongside the executable | Extra link flag |
+| --- | --- | --- |
+| macOS | `liblitert_lm_c_api.dylib`, `libGemmaModelConstraintProvider.dylib` | none |
+| Linux | `liblitert_lm_c_api.so` plus the `libLiteRt*.so` files | `-Wl,-rpath,$ORIGIN` |
+| Windows | `litert_lm_c_api.dll` plus the other `*.dll` files | none |
+
+The `litert-lm-edge-sys` build script already copies every runtime into the
+profile directory (`target/<profile>/`), which is where the executable ends up. macOS needs no link flag because the dylib install name is
+`@loader_path/liblitert_lm_c_api.dylib`. Linux has no equivalent, and a
+dependency cannot inject an rpath into your binary, so add the flag yourself:
+
+```toml
+# .cargo/config.toml
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-Wl,-rpath,$ORIGIN"]
+```
+
 System runtime for custom LiteRT-LM builds or other platforms:
 
 ```bash

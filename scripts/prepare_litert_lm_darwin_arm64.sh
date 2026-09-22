@@ -84,13 +84,21 @@ EOF
 rm -f "${VENDOR_DIR}"/*.dylib
 install -m 755 "${SRC_DIR}/bazel-bin/litert_lm_c_api_vendor/liblitert_lm_c_api_vendor.dylib" \
   "${VENDOR_DIR}/${LIB_NAME}"
-install_name_tool -id "@rpath/${LIB_NAME}" "${VENDOR_DIR}/${LIB_NAME}"
+# An @loader_path install name lets any binary that links this library resolve
+# it next to itself, with no LC_RPATH in the consumer. That matters because
+# cargo:rustc-link-arg never reaches a downstream binary, so the crate cannot
+# inject an rpath on the consumer's behalf. Bazel's ad-hoc signature is
+# invalidated by install_name_tool, so re-sign it.
+install_name_tool -id "@loader_path/${LIB_NAME}" "${VENDOR_DIR}/${LIB_NAME}"
+codesign --force --sign - "${VENDOR_DIR}/${LIB_NAME}"
 
 install -m 755 "${SRC_DIR}/prebuilt/macos_arm64/libGemmaModelConstraintProvider.dylib" \
   "${VENDOR_DIR}/libGemmaModelConstraintProvider.dylib"
+# This dylib keeps its @rpath install name: only ${LIB_NAME} loads it, and that
+# library already carries an @loader_path rpath. Leaving it untouched preserves
+# Google's upstream code signature.
 install_name_tool -id "@rpath/libGemmaModelConstraintProvider.dylib" \
   "${VENDOR_DIR}/libGemmaModelConstraintProvider.dylib"
-
 cat >"${VENDOR_DIR}/VERSION" <<EOF
 LiteRT-LM tag: ${TAG}
 LiteRT-LM commit: ${COMMIT}
@@ -98,6 +106,7 @@ Target: aarch64-apple-darwin
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Bazel command: ${BAZEL[*]} build //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Library: ${LIB_NAME}
+Install name: @loader_path/${LIB_NAME}
 Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 EOF
 
