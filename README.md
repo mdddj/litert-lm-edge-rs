@@ -87,7 +87,7 @@ Rebuild and republish the assets after changing a runtime:
 
 ```bash
 python3 scripts/build_runtime_assets.py
-gh release upload v0.2.1 dist/runtime/*.tar.gz --clobber
+gh release upload v<crate version> dist/runtime/*.tar.gz --clobber
 ```
 
 Then update the platform hashes in `litert-lm-edge-sys/runtime-checksums.txt`
