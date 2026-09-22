@@ -128,7 +128,26 @@ install -m 755 "${SRC_DIR}/bazel-bin/litert_lm_c_api_vendor/liblitert_lm_c_api_v
 # next to the executable, which is where copy_vendor_runtimes_to_target_dirs
 # puts every runtime, so consumers need no rpath of their own. The rpath stays
 # $ORIGIN so this library finds libGemmaModelConstraintProvider.so alongside it.
-patchelf --set-soname "\$ORIGIN/${LIB_NAME}" --set-rpath '$ORIGIN' "${VENDOR_DIR}/${LIB_NAME}"
+# Each edit needs its own patchelf call: 0.14.3 (the version Ubuntu 22.04 ships,
+# and what the runtime workflow installs) silently discards --set-rpath when the
+# same invocation also changes the soname. That bug shipped the runtime with the
+# Bazel rpath still in place. Two calls apply both on 0.14.3 and 0.18.0.
+patchelf --set-rpath '$ORIGIN' "${VENDOR_DIR}/${LIB_NAME}"
+patchelf --set-soname "\$ORIGIN/${LIB_NAME}" "${VENDOR_DIR}/${LIB_NAME}"
+
+# A stale soname or rpath only surfaces as a load failure in a downstream
+# consumer, and the committed runtime has shipped with the Bazel rpath left in
+# place before. Verify the rewrite instead of trusting the exit status.
+soname="$(patchelf --print-soname "${VENDOR_DIR}/${LIB_NAME}")"
+rpath="$(patchelf --print-rpath "${VENDOR_DIR}/${LIB_NAME}")"
+if [[ "${soname}" != "\$ORIGIN/${LIB_NAME}" ]]; then
+  echo "Expected soname \$ORIGIN/${LIB_NAME}, got '${soname}'." >&2
+  exit 1
+fi
+if [[ ":${rpath}:" != *":\$ORIGIN:"* ]]; then
+  echo "Expected an rpath containing \$ORIGIN, got '${rpath}'." >&2
+  exit 1
+fi
 
 PREBUILT_DIR="${SRC_DIR}/prebuilt/linux_x86_64"
 for so in \
@@ -155,7 +174,7 @@ Target: x86_64-unknown-linux-gnu
 Bazel target: //litert_lm_c_api_vendor:litert_lm_c_api_vendor
 Bazel command: ${BAZEL[*]} --output_user_root=${BAZEL_OUTPUT_USER_ROOT} build //litert_lm_c_api_vendor:litert_lm_c_api_vendor --config=linux --action_env=PATH --action_env=CC=${CC} --action_env=CXX=${CXX} --repo_env=PATH --repo_env=CC=${CC} --repo_env=CXX=${CXX} --disk_cache=${BAZEL_DISK_CACHE} --repository_cache=${BAZEL_REPOSITORY_CACHE}
 Library: ${LIB_NAME}
-Soname: $ORIGIN/${LIB_NAME}
+Soname: \$ORIGIN/${LIB_NAME}
 Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 EOF
 
