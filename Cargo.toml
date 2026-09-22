@@ -7,11 +7,11 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-litert-lm-edge = { version = "0.2.3", path = "litert-lm-edge", default-features = false }
-litert-lm-edge-sys = { version = "0.2.3", path = "litert-lm-edge-sys", default-features = false }
+litert-lm-edge = { version = "0.2.4", path = "litert-lm-edge", default-features = false }
+litert-lm-edge-sys = { version = "0.2.4", path = "litert-lm-edge-sys", default-features = false }
 
 [workspace.package]
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
