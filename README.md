@@ -117,13 +117,27 @@ A consumer that builds its own runtime set can still add
 
 #### Known issue: Linux exit-time segfault
 
-On Linux the process segfaults while tearing down static state after `main`
-returns, so it exits with status 139 and may dump core. It reproduces with the
-untouched `v0.2.2` runtime under `LD_LIBRARY_PATH`, so it comes from the
-upstream LiteRT-LM `v0.17.1` Linux build rather than from this crate, and it
-does not happen on macOS. The `.github/workflows/consumer-smoke.yml` job
-records it as a warning instead of a failure. A rebuild of the Linux runtime
-may clear it; see the runtime upgrade checklist.
+On Linux a process that loads the bundled runtime segfaults during shutdown,
+after `main` returns, so it exits with status 139 and dumps core. Loading alone
+is enough: no API call is required, and all four modes of
+`scripts/linux-exit-crash-repro.c` reproduce it.
+
+The Linux build carries LLVM profile instrumentation, so its exit-time
+destructor runs the profile writer and crashes inside `WriteBinaryIds`:
+
+```
+#4  writeFile (OutputName="default.profraw") at InstrProfilingFile.c:528
+#5  __llvm_profile_write_file ()
+#6  __cxa_finalize
+#7  __do_global_dtors_aux () from liblitert_lm_c_api.so
+```
+
+The same tag on macOS exits cleanly. Reported upstream as
+[LiteRT-LM#3705](https://github.com/google-ai-edge/LiteRT-LM/issues/3705). The
+`consumer-smoke` workflow records status 139 as a warning instead of a failure,
+and `litert-lm-edge-sys/build.rs` excludes the stray `default.profraw` from the
+crate. Worth knowing: every process that loads the runtime writes that file
+into its working directory.
 
 System runtime for custom LiteRT-LM builds or other platforms:
 
