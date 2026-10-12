@@ -29,7 +29,7 @@ That means users on those targets do not need `LITERT_LM_LIB_DIR`,
 
 The exact upstream tag for each checked-in runtime is recorded in
 `litert-lm-edge-sys/vendor/<target>/VERSION`. The runtime preparation scripts
-and workflows default to `google-ai-edge/LiteRT-LM` `v0.17.1` with the CPU-only
+and workflows default to `google-ai-edge/LiteRT-LM` `v0.18.0` with the CPU-only
 C API target. GPU, Metal, NPU, vision, and audio settings are exposed in Rust,
 but the bundled runtimes are intentionally CPU-first. Use `system` mode for a
 custom native build.
@@ -43,6 +43,12 @@ parameters are opaque native objects, generation takes an array of input
 pointers, and streaming callbacks receive `LiteRtLmStreamChunk` objects.
 Do not mix this SDK with older native runtimes, including in `system` mode.
 Rebuild the UE FFI bridge and replace its native runtime copies together.
+
+SDK 0.2.5 targets LiteRT-LM v0.18.0. It adds
+`EngineBuilder::single_threaded_execution` and
+`SessionConfig.enable_speculative_decoding`. Call signatures from v0.17.1 are
+unchanged. Existing `SessionConfig` struct literals need the new field, or
+`..SessionConfig::default()`.
 
 The CPU runtime implements `SamplerType::TopP`; use `top_k: 1` with `TopP`
 for deterministic sampling. Explicit `TopK` and `Greedy` currently return an
@@ -170,8 +176,8 @@ The bundled runtime can be rebuilt on Apple Silicon macOS:
 scripts/prepare_litert_lm_darwin_arm64.sh
 ```
 
-The script requires Git LFS and Bazel/Bazelisk. It downloads LiteRT-LM `v0.17.1`
-into `.litert-lm-build/LiteRT-LM-v0.17.1/`, builds a shared CPU C API library,
+The script requires Git LFS and Bazel/Bazelisk. It downloads LiteRT-LM `v0.18.0`
+into `.litert-lm-build/LiteRT-LM-v0.18.0/`, builds a shared CPU C API library,
 fetches platform-specific LFS dependencies, and copies the libraries into
 `litert-lm-edge-sys/vendor/darwin-arm64/`, and writes `VERSION` plus
 `SHA256SUMS`.
@@ -216,7 +222,7 @@ scripts and runtime workflows, then rebuild and verify every checked-in
 fixed: GitHub's Windows runner may fetch Bazel `http_archive` dependencies from
 different mirrors or caches.
 
-Upstream v0.17.1 includes mirror URLs for the `minizip` archive;
+Upstream v0.17.1 and later include mirror URLs for the `minizip` archive;
 the v0.13.1 local URL patch is no longer needed. Source caches are versioned
 so upgrading does not overwrite a previously patched checkout.
 
@@ -467,6 +473,7 @@ fn main() -> litert_lm_edge::Result<()> {
     let mut session = engine.create_session(SessionConfig {
         max_output_tokens: Some(256),
         apply_prompt_template: Some(true),
+        enable_speculative_decoding: None,
         sampler: Some(SamplerParams {
             sampler_type: SamplerType::TopP,
             top_k: 40,
@@ -497,6 +504,7 @@ fn main() -> litert_lm_edge::Result<()> {
         .max_num_images(2)
         .prefill_chunk_size(256)
         .parallel_file_section_loading(true)
+        .single_threaded_execution(false)
         .multi_token_prediction(true)
         .build()?;
 

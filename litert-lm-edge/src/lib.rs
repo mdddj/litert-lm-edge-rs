@@ -35,6 +35,7 @@ pub struct EngineBuilder {
     audio_backend: Option<Backend>,
     max_num_tokens: Option<i32>,
     parallel_file_section_loading: Option<bool>,
+    single_threaded_execution: Option<bool>,
     cache_dir: Option<PathBuf>,
     prefill_chunk_size: Option<i32>,
     max_num_images: Option<i32>,
@@ -73,6 +74,7 @@ pub struct Session<'engine> {
 pub struct SessionConfig {
     pub max_output_tokens: Option<i32>,
     pub apply_prompt_template: Option<bool>,
+    pub enable_speculative_decoding: Option<bool>,
     pub sampler: Option<SamplerParams>,
 }
 
@@ -102,6 +104,7 @@ impl Engine {
             audio_backend: None,
             max_num_tokens: None,
             parallel_file_section_loading: None,
+            single_threaded_execution: None,
             cache_dir: None,
             prefill_chunk_size: None,
             max_num_images: None,
@@ -161,6 +164,11 @@ impl EngineBuilder {
 
     pub fn parallel_file_section_loading(mut self, enabled: bool) -> Self {
         self.parallel_file_section_loading = Some(enabled);
+        self
+    }
+
+    pub fn single_threaded_execution(mut self, enabled: bool) -> Self {
+        self.single_threaded_execution = Some(enabled);
         self
     }
 
@@ -226,6 +234,16 @@ impl EngineBuilder {
             // SAFETY: settings.raw is a valid settings pointer owned by RawEngineSettings.
             unsafe {
                 ffi::litert_lm_engine_settings_set_parallel_file_section_loading(
+                    settings.raw.as_ptr(),
+                    enabled,
+                );
+            }
+        }
+        if let Some(enabled) = self.single_threaded_execution {
+            // SAFETY: settings.raw is a valid settings pointer owned by RawEngineSettings.
+            // The bool is passed by value; no pointer is retained after the call.
+            unsafe {
+                ffi::litert_lm_engine_settings_set_single_threaded_execution(
                     settings.raw.as_ptr(),
                     enabled,
                 );
@@ -400,6 +418,16 @@ impl RawSessionConfig {
                 );
             }
         }
+        if let Some(enabled) = config.enable_speculative_decoding {
+            // SAFETY: raw is a valid config pointer owned by wrapper.
+            // The bool is passed by value; no pointer is retained after the call.
+            unsafe {
+                ffi::litert_lm_session_config_set_enable_speculative_decoding(
+                    raw.as_ptr(),
+                    enabled,
+                );
+            }
+        }
         if let Some(sampler) = config.sampler {
             let sampler_type = match sampler.sampler_type {
                 SamplerType::Unspecified => ffi::kLiteRtLmSamplerTypeUnspecified,
@@ -448,6 +476,7 @@ impl PartialEq for SessionConfig {
     fn eq(&self, other: &Self) -> bool {
         self.max_output_tokens == other.max_output_tokens
             && self.apply_prompt_template == other.apply_prompt_template
+            && self.enable_speculative_decoding == other.enable_speculative_decoding
             && self.sampler == other.sampler
     }
 }
@@ -516,5 +545,14 @@ mod tests {
             Err(err) => err,
         };
         assert!(matches!(err, Error::Nul(_)));
+    }
+
+    #[test]
+    fn speculative_decoding_config_is_not_default() {
+        let config = SessionConfig {
+            enable_speculative_decoding: Some(true),
+            ..SessionConfig::default()
+        };
+        assert_ne!(config, SessionConfig::default());
     }
 }

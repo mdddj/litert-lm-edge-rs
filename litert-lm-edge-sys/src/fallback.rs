@@ -122,6 +122,12 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn litert_lm_session_config_set_enable_speculative_decoding(
+        config: *mut LiteRtLmSessionConfig,
+        enable_speculative_decoding: bool,
+    );
+}
+unsafe extern "C" {
     pub fn litert_lm_session_config_set_sampler_params(
         config: *mut LiteRtLmSessionConfig,
         sampler_params: *const LiteRtLmSamplerParams,
@@ -271,6 +277,12 @@ unsafe extern "C" {
     pub fn litert_lm_engine_settings_set_parallel_file_section_loading(
         settings: *mut LiteRtLmEngineSettings,
         parallel_file_section_loading: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_engine_settings_set_single_threaded_execution(
+        settings: *mut LiteRtLmEngineSettings,
+        single_threaded_execution: bool,
     );
 }
 unsafe extern "C" {
