@@ -4,6 +4,7 @@
 **/*.rs.bk
 models/
 .idea/
+.workbuddy/
 /litert_lm_edge_ue
 /dist/
 .release/
