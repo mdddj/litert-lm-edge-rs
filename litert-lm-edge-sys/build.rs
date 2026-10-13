@@ -199,21 +199,53 @@ fn runtime_cache_dir() -> PathBuf {
     target_root.join("litert-lm-runtime")
 }
 
+/// Records which release populated a cached runtime directory. The cache lives
+/// outside `OUT_DIR` and survives upgrades, so without this marker a new crate
+/// version would keep linking the native libraries fetched for the old one and
+/// only fail later, at link time, with missing symbols.
+const FETCHED_VERSION_MARKER: &str = ".fetched-version";
+
 fn fetch_runtime(platform: &str) -> PathBuf {
     let destination = runtime_cache_dir().join(platform);
-    if is_populated_runtime_dir(&destination) {
+    let cached = is_populated_runtime_dir(&destination);
+    if cached && cached_version_matches(&destination) {
         return destination;
     }
 
+    // Bail out before touching the cache: an outdated runtime is still worth
+    // keeping on disk when there is no way to fetch a replacement.
     if env::var_os("LITERT_LM_RUNTIME_OFFLINE").is_some()
         || env::var("CARGO_NET_OFFLINE").as_deref() == Ok("true")
     {
+        let reason = if cached {
+            format!(
+                "the cached runtime for {platform} was fetched by a different release, not {}",
+                env!("CARGO_PKG_VERSION")
+            )
+        } else {
+            format!("the LiteRT-LM runtime for {platform} is not available locally")
+        };
         panic!(
-            "the LiteRT-LM runtime for {platform} is not available locally and downloads are \
-             disabled (LITERT_LM_RUNTIME_OFFLINE / CARGO_NET_OFFLINE). Either run the matching \
-             scripts/prepare_litert_lm_*.sh (or .ps1) to populate vendor/{platform}, or enable \
-             the `system` feature with LITERT_LM_LIB_DIR pointing at an existing installation"
+            "{reason}, and downloads are disabled (LITERT_LM_RUNTIME_OFFLINE / \
+             CARGO_NET_OFFLINE). Either run the matching scripts/prepare_litert_lm_*.sh \
+             (or .ps1) to populate vendor/{platform}, or enable the `system` feature with \
+             LITERT_LM_LIB_DIR pointing at an existing installation"
         );
+    }
+
+    // Reaching this point means the cached copy is unusable, whether it holds
+    // an older release or nothing but a leftover marker. `extract_runtime`
+    // treats an occupied destination as a lost race and keeps whatever is
+    // there, so clear the path before the rename.
+    if destination.exists() {
+        if let Err(error) = fs::remove_dir_all(&destination) {
+            if error.kind() != io::ErrorKind::NotFound {
+                panic!(
+                    "failed to clear the outdated LiteRT-LM runtime in {}: {error}",
+                    destination.display()
+                );
+            }
+        }
     }
 
     let (base_url, is_default_base) = runtime_base_url();
@@ -223,12 +255,27 @@ fn fetch_runtime(platform: &str) -> PathBuf {
     let archive = download(&url, platform);
     verify_archive_checksum(platform, &archive, is_default_base);
     extract_runtime(&archive, &destination);
+    record_fetched_version(&destination);
 
     println!(
         "cargo:warning=LiteRT-LM runtime for {platform} ready at {}",
         destination.display()
     );
     destination
+}
+
+/// Written after `extract_runtime`, so the `SHA256SUMS` manifest inside the
+/// archive — which lists only the runtime files — still verifies unchanged.
+fn cached_version_matches(directory: &Path) -> bool {
+    fs::read_to_string(directory.join(FETCHED_VERSION_MARKER))
+        .is_ok_and(|version| version.trim() == env!("CARGO_PKG_VERSION"))
+}
+
+fn record_fetched_version(directory: &Path) {
+    let marker = directory.join(FETCHED_VERSION_MARKER);
+    if let Err(error) = fs::write(&marker, env!("CARGO_PKG_VERSION")) {
+        println!("cargo:warning=could not record the runtime cache version: {error}");
+    }
 }
 
 fn runtime_base_url() -> (String, bool) {
