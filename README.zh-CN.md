@@ -123,7 +123,7 @@ scripts/prepare_litert_lm_linux_x86_64.sh
 6. 分别使用默认绑定和 `generate-bindings` 构建验证实际生成、流式调用；更新 UE ThirdParty 库前必须重新构建 UE FFI 桥接库。
 7. 用 `python3 scripts/build_runtime_assets.py` 刷新发布用的 runtime 资产，用 `gh release upload v<crate version> dist/runtime/*.tar.gz --clobber` 上传，并更新 `litert-lm-edge-sys/runtime-checksums.txt`。已发布的 crate 会下载这些资产，过期的资产等于悄悄发布了旧 runtime。
 
-runtime 有变化时，必须先发布资产、再把对应的版本号推进 `main`。`consumer-smoke` workflow 会按工作区版本号去同名 release 下载 runtime，tag 还没发布就会下载失败。正确顺序是：先推 tag，再建 release，最后推 `main`。
+必须在使用该版本号的消费者拿到之前发布好资产。checkout 里的构建会优先使用仓库中已提交的 `vendor/<target>/` 目录 —— 因为 `vendor-<platform>` feature 默认开启，`resolve_runtime_dir` 会优先选它。只有已发布 crate 的消费者才会去下载 release 资产，因为发布包里不含 `vendor/`。`consumer-smoke` workflow 构建的是签入的那份副本，因此它覆盖的是链接与加载期解析，不覆盖下载路径；检查新 release 时需要手动下载资产并确认符号存在。
 
 ## 使用方式
 

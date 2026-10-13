@@ -6,10 +6,13 @@ name: Consumer Smoke Test
 # which hides a missing or unresolvable runtime, so the run step below
 # deliberately unsets them.
 #
-# The consumer crate resolves litert-lm-edge by path, but the native runtime is
-# fetched from the GitHub Release whose tag matches the workspace version. Bump
-# the version and publish the release assets before pushing, or this workflow
-# fails on the download.
+# The consumer crate resolves litert-lm-edge by path, so the default
+# `vendor-<platform>` features find this checkout's `vendor/` directories and
+# the native runtime is linked from there. This job covers linking and loader
+# resolution, not the release download: the published crate omits `vendor/` and
+# fetches its runtime from the release named after the workspace version
+# instead. Check a new release by downloading its asset and confirming the
+# expected symbols, since nothing here exercises that path.
 
 on:
   workflow_dispatch:

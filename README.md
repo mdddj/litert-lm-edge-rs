@@ -270,11 +270,14 @@ For each upgrade:
    update `litert-lm-edge-sys/runtime-checksums.txt`. Published crates fetch
    these assets, so a stale asset silently ships an old runtime.
 
-When a runtime changes, publish the assets before pushing the matching version
-bump to `main`. The `consumer-smoke` workflow resolves the runtime from the
-release named after the workspace version, so it fails on the download if the
-tag is not published yet. Push the tag first, then create the release, then
-push `main`.
+Publish the assets before the version that names them reaches consumers. A
+checkout resolves the runtime from its committed `vendor/<target>/`
+directories, because the `vendor-<platform>` features are on by default and
+`resolve_runtime_dir` prefers them. Only consumers of the published crate fetch
+the release assets, since the package omits `vendor/`. The `consumer-smoke`
+workflow builds against the committed copy, so it covers linking and loader
+resolution but not the download path; check a new release by downloading the
+asset and confirming the symbols are present.
 
 ## Usage
 
