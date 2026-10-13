@@ -1,6 +1,6 @@
 [package]
 name = "litert-lm-edge"
-description = "Safe Rust wrapper for LiteRT-LM text generation and streaming."
+description = "Safe Rust wrapper for LiteRT-LM text generation, streaming, and embeddings."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

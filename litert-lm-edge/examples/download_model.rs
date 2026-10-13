@@ -36,8 +36,11 @@ fn parse_model(value: &str) -> litert_lm_edge::Result<KnownModel> {
     match value {
         "e2b" | "E2B" | "gemma-4-e2b" | "gemma-4-E2B" => Ok(KnownModel::Gemma4E2B),
         "e4b" | "E4B" | "gemma-4-e4b" | "gemma-4-E4B" => Ok(KnownModel::Gemma4E4B),
+        "embeddinggemma" | "embeddinggemma-2" | "embeddinggemma-2-740m" => {
+            Ok(KnownModel::EmbeddingGemma2_740M)
+        }
         _ => Err(litert_lm_edge::Error::InvalidResponse(format!(
-            "unknown model {value}; use e2b or e4b"
+            "unknown model {value}; use e2b, e4b, or embeddinggemma"
         ))),
     }
 }

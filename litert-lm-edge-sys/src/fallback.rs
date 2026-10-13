@@ -923,3 +923,218 @@ unsafe extern "C" {
         conversation: *mut LiteRtLmConversation,
     ) -> ::std::os::raw::c_int;
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct LiteRtLmEmbeddingEngine {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct LiteRtLmEmbeddingEngineSettings {
+    _unused: [u8; 0],
+}
+pub const kLiteRtLmInputOverflowStrategyChunkAndAverage: LiteRtLmInputOverflowStrategy = 0;
+pub const kLiteRtLmInputOverflowStrategyTruncate: LiteRtLmInputOverflowStrategy = 1;
+pub const kLiteRtLmInputOverflowStrategyError: LiteRtLmInputOverflowStrategy = 2;
+pub type LiteRtLmInputOverflowStrategy = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct LiteRtLmEmbeddingOptions {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct LiteRtLmEmbeddingResponse {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct LiteRtLmEmbeddingResponses {
+    _unused: [u8; 0],
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_create(
+        model_path: *const ::std::os::raw::c_char,
+        backend_str: *const ::std::os::raw::c_char,
+        vision_backend_str: *const ::std::os::raw::c_char,
+        audio_backend_str: *const ::std::os::raw::c_char,
+    ) -> *mut LiteRtLmEmbeddingEngineSettings;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_delete(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_num_threads(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        num_threads: ::std::os::raw::c_int,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_audio_num_threads(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        num_threads: ::std::os::raw::c_int,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_cache_dir(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        cache_dir: *const ::std::os::raw::c_char,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_litert_dispatch_lib_dir(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        lib_dir: *const ::std::os::raw::c_char,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_vision_litert_dispatch_lib_dir(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        lib_dir: *const ::std::os::raw::c_char,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_audio_litert_dispatch_lib_dir(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        lib_dir: *const ::std::os::raw::c_char,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_max_input_length(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        max_input_length: ::std::os::raw::c_int,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_min_input_length(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        min_input_length: ::std::os::raw::c_int,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_vision_tokens_per_image(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        vision_tokens_per_image: ::std::os::raw::c_int,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_settings_set_activation_data_type(
+        settings: *mut LiteRtLmEmbeddingEngineSettings,
+        activation_data_type: LiteRtLmActivationDataType,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_create() -> *mut LiteRtLmEmbeddingOptions;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_delete(options: *mut LiteRtLmEmbeddingOptions);
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_set_normalize(
+        options: *mut LiteRtLmEmbeddingOptions,
+        normalize: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_get_normalize(
+        options: *const LiteRtLmEmbeddingOptions,
+    ) -> bool;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_set_insert_special_tokens(
+        options: *mut LiteRtLmEmbeddingOptions,
+        insert_special_tokens: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_get_insert_special_tokens(
+        options: *const LiteRtLmEmbeddingOptions,
+    ) -> bool;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_set_input_overflow_strategy(
+        options: *mut LiteRtLmEmbeddingOptions,
+        strategy: LiteRtLmInputOverflowStrategy,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_get_input_overflow_strategy(
+        options: *const LiteRtLmEmbeddingOptions,
+    ) -> LiteRtLmInputOverflowStrategy;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_set_output_size(
+        options: *mut LiteRtLmEmbeddingOptions,
+        output_size: ::std::os::raw::c_int,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_get_output_size(
+        options: *const LiteRtLmEmbeddingOptions,
+    ) -> ::std::os::raw::c_int;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_set_vision_tokens_per_image(
+        options: *mut LiteRtLmEmbeddingOptions,
+        vision_tokens_per_image: ::std::os::raw::c_int,
+    );
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_options_get_vision_tokens_per_image(
+        options: *const LiteRtLmEmbeddingOptions,
+    ) -> ::std::os::raw::c_int;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_response_delete(response: *mut LiteRtLmEmbeddingResponse);
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_response_get_size(
+        response: *const LiteRtLmEmbeddingResponse,
+    ) -> usize;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_response_get_values(
+        response: *const LiteRtLmEmbeddingResponse,
+    ) -> *const f32;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_responses_delete(responses: *mut LiteRtLmEmbeddingResponses);
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_responses_get_size(
+        responses: *const LiteRtLmEmbeddingResponses,
+    ) -> usize;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_responses_get_at(
+        responses: *const LiteRtLmEmbeddingResponses,
+        index: usize,
+    ) -> *const LiteRtLmEmbeddingResponse;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_create(
+        settings: *const LiteRtLmEmbeddingEngineSettings,
+    ) -> *mut LiteRtLmEmbeddingEngine;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_delete(engine: *mut LiteRtLmEmbeddingEngine);
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_compute_embedding(
+        engine: *mut LiteRtLmEmbeddingEngine,
+        inputs: *const *const LiteRtLmInputData,
+        num_inputs: usize,
+        options: *const LiteRtLmEmbeddingOptions,
+    ) -> *mut LiteRtLmEmbeddingResponse;
+}
+unsafe extern "C" {
+    pub fn litert_lm_embedding_engine_compute_embedding_batch(
+        engine: *mut LiteRtLmEmbeddingEngine,
+        inputs_batch: *const *const *const LiteRtLmInputData,
+        num_inputs_per_batch: *const usize,
+        batch_size: usize,
+        options: *const LiteRtLmEmbeddingOptions,
+    ) -> *mut LiteRtLmEmbeddingResponses;
+}

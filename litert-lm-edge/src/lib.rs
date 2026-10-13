@@ -1,4 +1,5 @@
 mod conversation;
+mod embedding;
 mod error;
 mod input;
 mod message;
@@ -10,6 +11,9 @@ mod tokio_runtime;
 mod tool;
 
 pub use conversation::{Conversation, ConversationConfig, SendOptions};
+pub use embedding::{
+    EmbeddingEngine, EmbeddingEngineBuilder, EmbeddingOptions, EmbeddingTask, InputOverflowStrategy,
+};
 pub use error::{Error, Result};
 pub use input::InputData;
 pub use message::{Content, Message, Role, ToolCall, ToolCallFunction};
@@ -52,7 +56,7 @@ pub enum Backend {
 }
 
 impl Backend {
-    fn as_str(&self) -> &str {
+    pub(crate) fn as_str(&self) -> &str {
         match self {
             Self::Cpu => "cpu",
             Self::Gpu => "gpu",
@@ -517,19 +521,19 @@ impl Drop for Responses {
     }
 }
 
-fn path_to_cstring(path: &Path) -> Result<CString> {
+pub(crate) fn path_to_cstring(path: &Path) -> Result<CString> {
     let value = path.to_str().ok_or(Error::ModelPath)?;
     Ok(CString::new(value)?)
 }
 
-fn optional_backend_cstring(backend: Option<&Backend>) -> Result<Option<CString>> {
+pub(crate) fn optional_backend_cstring(backend: Option<&Backend>) -> Result<Option<CString>> {
     backend
         .map(|backend| CString::new(backend.as_str()))
         .transpose()
         .map_err(Into::into)
 }
 
-fn optional_cstring_ptr(value: Option<&CString>) -> *const std::ffi::c_char {
+pub(crate) fn optional_cstring_ptr(value: Option<&CString>) -> *const std::ffi::c_char {
     value.map_or(std::ptr::null(), |value| value.as_ptr())
 }
 

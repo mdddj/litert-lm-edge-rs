@@ -10,6 +10,10 @@ const DEFAULT_HUGGING_FACE_BASE_URL: &str = "https://huggingface.co";
 pub enum KnownModel {
     Gemma4E2B,
     Gemma4E4B,
+    /// EmbeddingGemma 2, the general-purpose bundle. Load it with
+    /// [`crate::EmbeddingEngine`], not [`crate::Engine`]: it produces vectors
+    /// and has no text-generation path.
+    EmbeddingGemma2_740M,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,11 +62,21 @@ impl KnownModel {
                 size_bytes: 3_659_530_240,
                 description: "Next-gen multimodal chat — text, image, audio.",
             },
+            Self::EmbeddingGemma2_740M => ModelInfo {
+                id: self,
+                name: "EmbeddingGemma 2 740M",
+                repo: "litert-community/embeddinggemma-2-740m-litert-lm",
+                filename: "embeddinggemma-2-740m.litertlm",
+                revision: "24d962e906c7d332c6428e71c9676855024569e2",
+                sha256: "e7a8a2204b91e0f96e92960e84a09a89212e1633dcb7575a9bf3378b4df77f4c",
+                size_bytes: 484_622_336,
+                description: "Multimodal embeddings — text, image, audio retrieval.",
+            },
         }
     }
 
     pub fn all() -> &'static [KnownModel] {
-        &[Self::Gemma4E2B, Self::Gemma4E4B]
+        &[Self::Gemma4E2B, Self::Gemma4E4B, Self::EmbeddingGemma2_740M]
     }
 }
 
@@ -79,6 +93,7 @@ impl ModelInfo {
         match self.id {
             KnownModel::Gemma4E2B => "gemma-4-E2B-it-litert-lm",
             KnownModel::Gemma4E4B => "gemma-4-E4B-it-litert-lm",
+            KnownModel::EmbeddingGemma2_740M => "embeddinggemma-2-740m-litert-lm",
         }
     }
 }
@@ -245,9 +260,10 @@ mod tests {
     #[test]
     fn known_models_have_stable_metadata() {
         let models = KnownModel::all();
-        assert_eq!(models.len(), 2);
+        assert_eq!(models.len(), 3);
         assert_eq!(models[0].info().filename, "gemma-4-E2B-it.litertlm");
         assert_eq!(models[1].info().filename, "gemma-4-E4B-it.litertlm");
+        assert_eq!(models[2].info().filename, "embeddinggemma-2-740m.litertlm");
     }
 
     #[test]
@@ -256,6 +272,15 @@ mod tests {
         assert_eq!(
             info.download_url("https://huggingface.co/"),
             "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/4f479a5ff97de64f5c1711ec439a2cb89e6a8fb4/gemma-4-E4B-it.litertlm"
+        );
+    }
+
+    #[test]
+    fn builds_embedding_gemma_download_url() {
+        let info = KnownModel::EmbeddingGemma2_740M.info();
+        assert_eq!(
+            info.download_url("https://huggingface.co/"),
+            "https://huggingface.co/litert-community/embeddinggemma-2-740m-litert-lm/resolve/24d962e906c7d332c6428e71c9676855024569e2/embeddinggemma-2-740m.litertlm"
         );
     }
 

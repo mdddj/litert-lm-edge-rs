@@ -536,11 +536,22 @@ fn generate_bindings() {
             "LITERT_LM_ROOT must point to a LiteRT-LM checkout when generate-bindings is enabled"
         )
     });
-    let header = Path::new(&root).join("c").join("conversation.h");
-    println!("cargo:rerun-if-changed={}", header.display());
+    // Headers that make up the public C API this crate binds. conversation.h
+    // pulls in engine.h; embedding_engine.h adds the embedding engine surface.
+    // Keep this list in step with the exported-symbols whitelist in
+    // scripts/prepare_litert_lm_darwin_arm64.sh: a header listed in one place
+    // but not the other yields either undeclared symbols or a missing export.
+    const HEADERS: [&str; 2] = ["conversation.h", "embedding_engine.h"];
 
-    let mut builder = bindgen::Builder::default()
-        .header(header.display().to_string())
+    let header_dir = Path::new(&root).join("c");
+    let mut builder = bindgen::Builder::default();
+    for name in HEADERS {
+        let header = header_dir.join(name);
+        println!("cargo:rerun-if-changed={}", header.display());
+        builder = builder.header(header.display().to_string());
+    }
+
+    builder = builder
         .allowlist_function("litert_lm_.*")
         .allowlist_type("LiteRtLm.*")
         .allowlist_var("kLiteRtLm.*")
@@ -550,7 +561,11 @@ fn generate_bindings() {
         .derive_default(true)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
 
-    builder = builder.clang_arg(format!("-I{}", Path::new(&root).join("c").display()));
+    // The public headers include "engine.h" on Apple platforms and
+    // "c/engine.h" elsewhere, so both roots must be on the include path.
+    builder = builder
+        .clang_arg(format!("-I{}", header_dir.display()))
+        .clang_arg(format!("-I{root}"));
 
     let bindings = builder
         .generate()
