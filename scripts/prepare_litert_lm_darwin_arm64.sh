@@ -51,7 +51,11 @@ import sys
 
 headers = pathlib.Path(sys.argv[1])
 symbols = set()
-for name in ("engine.h", "conversation.h"):
+# macOS uses this list as an exported-symbols whitelist, so every header that
+# declares part of the public C API must appear here: a function absent from
+# the list is dead-stripped out of the dylib entirely. Linux and Windows do not
+# filter symbols, which is why only this script needs the extra header.
+for name in ("engine.h", "conversation.h", "embedding_engine.h"):
     text = (headers / name).read_text()
     symbols.update(re.findall(r"\b(litert_lm_\w+)\s*\(", text))
 pathlib.Path(sys.argv[2]).write_text("".join(f"_{symbol}\n" for symbol in sorted(symbols)))
@@ -91,6 +95,20 @@ install -m 755 "${SRC_DIR}/bazel-bin/litert_lm_c_api_vendor/liblitert_lm_c_api_v
 # invalidated by install_name_tool, so re-sign it.
 install_name_tool -id "@loader_path/${LIB_NAME}" "${VENDOR_DIR}/${LIB_NAME}"
 codesign --force --sign - "${VENDOR_DIR}/${LIB_NAME}"
+
+# The export list is a whitelist, so a header left out of it loses its symbols
+# at link time and only surfaces as a dlsym failure in a downstream consumer.
+# Assert the public surface is actually there, one symbol per header family.
+for symbol in \
+  litert_lm_engine_create \
+  litert_lm_conversation_create \
+  litert_lm_embedding_engine_create \
+  litert_lm_embedding_engine_compute_embedding; do
+  if ! nm -gU "${VENDOR_DIR}/${LIB_NAME}" | grep -q " _${symbol}$"; then
+    echo "Expected export ${symbol} is missing from ${VENDOR_DIR}/${LIB_NAME}." >&2
+    exit 1
+  fi
+done
 
 install -m 755 "${SRC_DIR}/prebuilt/macos_arm64/libGemmaModelConstraintProvider.dylib" \
   "${VENDOR_DIR}/libGemmaModelConstraintProvider.dylib"
