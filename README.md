@@ -34,6 +34,13 @@ C API target. GPU, Metal, NPU, vision, and audio settings are exposed in Rust,
 but the bundled runtimes are intentionally CPU-first. Use `system` mode for a
 custom native build.
 
+The macOS runtime is linked with an exported-symbols whitelist that
+`scripts/prepare_litert_lm_darwin_arm64.sh` generates from the public C
+headers. A C API function whose header is missing from that list is
+dead-stripped out of the dylib and only shows up as a missing symbol in a
+consumer, so the list names `c/embedding_engine.h` alongside `c/engine.h` and
+`c/conversation.h`. Linux and Windows export the whole C API and need no list.
+
 ### SDK 0.2 migration
 
 SDK 0.2.1 targets LiteRT-LM v0.17.1 and includes its fix for preserving integer
@@ -293,12 +300,17 @@ MODEL=/path/to/model.litertlm
 
 ### Downloading Known Models
 
-Enable `model-download` to download the two supported Gemma 4 LiteRT-LM models:
+Enable `model-download` to download the bundled LiteRT-LM models:
 
 | Model | File | Size | SHA256 |
 | --- | --- | ---: | --- |
 | Gemma 4 E2B | `gemma-4-E2B-it.litertlm` | 2.4 GiB | `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c` |
 | Gemma 4 E4B | `gemma-4-E4B-it.litertlm` | 3.4 GiB | `0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0` |
+| EmbeddingGemma 2 740M | `embeddinggemma-2-740m.litertlm` | 462 MiB | `e7a8a2204b91e0f96e92960e84a09a89212e1633dcb7575a9bf3378b4df77f4c` |
+
+The two Gemma 4 entries are chat models for `Engine`. EmbeddingGemma 2 is an
+embedding model for `EmbeddingEngine`; it produces vectors and has no
+text-generation path.
 
 ```rust
 use litert_lm_edge::{KnownModel, ModelDownloader};
@@ -533,6 +545,50 @@ fn main() -> litert_lm_edge::Result<()> {
     Ok(())
 }
 ```
+
+### Embeddings
+
+`EmbeddingEngine` runs `.litertlm` embedding bundles such as EmbeddingGemma 2
+and returns vectors. It is a separate engine from `Engine`: an embedding bundle
+has no text-generation path, so it cannot be loaded with `Engine::builder`.
+
+```rust
+use litert_lm_edge::{EmbeddingEngine, EmbeddingOptions, EmbeddingTask, InputData};
+
+fn main() -> litert_lm_edge::Result<()> {
+    let mut engine = EmbeddingEngine::builder("/path/to/embeddinggemma-2-740m.litertlm")
+        .num_threads(4)
+        .build()?;
+
+    // normalize(true) makes the dot product equal cosine similarity.
+    let options = EmbeddingOptions::new().normalize(true);
+    let vector = engine.compute_embedding_with_options(
+        &[InputData::text(
+            EmbeddingTask::Query.prompt("a cat resting on a window"),
+        )],
+        options,
+    )?;
+    println!("{} dimensions", vector.len());
+
+    Ok(())
+}
+```
+
+`compute_embedding_batch` embeds several requests in one call. Inputs use the
+same multimodal `InputData` format as generation, so text, image, and audio
+content can be mixed within a request.
+
+EmbeddingGemma 2 was trained with asymmetric task prefixes, and `EmbeddingTask`
+fills in the documented ones:
+
+- `EmbeddingTask::Document` — `task: search result | text: `
+- `EmbeddingTask::Query` — `task: search query | text: `
+- `EmbeddingTask::Classification` — `task: classification | text: `
+- `EmbeddingTask::Clustering` — `task: clustering | text: `
+- `EmbeddingTask::SentenceSimilarity` — `task: sentence similarity | text: `
+
+Use `Document` when indexing and `Query` when searching. Sending the same
+prefix on both sides degrades retrieval quality.
 
 ### Multimodal Session API
 
@@ -896,4 +952,7 @@ cargo run -p litert-lm-edge --example raw_conversation_json -- \
 
 cargo run -p litert-lm-edge --example engine_config -- \
   "$MODEL"
+
+cargo run -p litert-lm-edge --example embedding_generate -- \
+  "$EMBEDDING_MODEL"
 ```

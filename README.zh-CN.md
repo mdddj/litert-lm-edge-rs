@@ -25,6 +25,8 @@ litert-lm-edge-sys/vendor/windows-x86_64/litert_lm_c_api.lib
 
 每个已提交 runtime 的精确上游 tag 记录在 `litert-lm-edge-sys/vendor/<target>/VERSION`。runtime 准备脚本和 workflow 默认使用 `google-ai-edge/LiteRT-LM` `v0.18.0`，构建目标是 CPU-only C API。Rust API 暴露了 GPU、Metal、NPU、vision 和 audio 相关设置，但默认打包 runtime 以 CPU 优先。需要自定义 accelerator 时，请使用 `system` 模式链接自己的 native build。
 
+macOS runtime 通过一份导出符号白名单链接，该白名单由 `scripts/prepare_litert_lm_darwin_arm64.sh` 从公开 C 头文件生成。凡是头文件没列入白名单的 C API 函数，都会在链接期被从 dylib 中剥离，只会在下游使用时以缺少符号的形式暴露出来；因此该清单在 `c/engine.h` 和 `c/conversation.h` 之外还列入了 `c/embedding_engine.h`。Linux 和 Windows 导出全部 C API，不需要这份清单。
+
 ### SDK 0.2 迁移说明
 
 SDK 0.2.1 对应 LiteRT-LM v0.17.1，并包含工具调用参数保持整数类型的上游修复。Rust 安全封装 API 保持不变，但 `litert-lm-edge-sys` 的原始 ABI 与 v0.13.1 不兼容：输入和采样参数改为不透明原生对象，生成接口接收输入指针数组，流式回调接收 `LiteRtLmStreamChunk` 对象。包括 `system` 模式在内，不得混用旧版原生库。UE FFI 桥接库也必须重新构建，并与其原生运行库副本一起替换。
@@ -160,12 +162,16 @@ MODEL=/path/to/model.litertlm
 
 ### 下载已知模型
 
-启用 `model-download` 后，可以下载这两个已支持的 Gemma 4 LiteRT-LM 模型：
+启用 `model-download` 后，可以下载以下已打包支持的 LiteRT-LM 模型：
 
 | 模型 | 文件 | 大小 | SHA256 |
 | --- | --- | ---: | --- |
 | Gemma 4 E2B | `gemma-4-E2B-it.litertlm` | 2.4 GiB | `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c` |
 | Gemma 4 E4B | `gemma-4-E4B-it.litertlm` | 3.4 GiB | `0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0` |
+| EmbeddingGemma 2 740M | `embeddinggemma-2-740m.litertlm` | 462 MiB | `e7a8a2204b91e0f96e92960e84a09a89212e1633dcb7575a9bf3378b4df77f4c` |
+
+前两个 Gemma 4 模型是给 `Engine` 用的对话模型。EmbeddingGemma 2 是给
+`EmbeddingEngine` 用的嵌入模型，它只产出向量，没有文本生成路径。
 
 ```rust
 use litert_lm_edge::{KnownModel, ModelDownloader};
@@ -396,6 +402,44 @@ fn main() -> litert_lm_edge::Result<()> {
     Ok(())
 }
 ```
+
+### 嵌入（Embeddings）
+
+`EmbeddingEngine` 用来跑 EmbeddingGemma 2 这类 `.litertlm` 嵌入模型并返回向量。它是独立于 `Engine` 的另一套引擎：嵌入模型没有文本生成路径，不能用 `Engine::builder` 加载。
+
+```rust
+use litert_lm_edge::{EmbeddingEngine, EmbeddingOptions, EmbeddingTask, InputData};
+
+fn main() -> litert_lm_edge::Result<()> {
+    let mut engine = EmbeddingEngine::builder("/path/to/embeddinggemma-2-740m.litertlm")
+        .num_threads(4)
+        .build()?;
+
+    // normalize(true) 后，点积即余弦相似度。
+    let options = EmbeddingOptions::new().normalize(true);
+    let vector = engine.compute_embedding_with_options(
+        &[InputData::text(
+            EmbeddingTask::Query.prompt("a cat resting on a window"),
+        )],
+        options,
+    )?;
+    println!("{} dimensions", vector.len());
+
+    Ok(())
+}
+```
+
+`compute_embedding_batch` 可以一次嵌入多个请求。输入沿用与生成 API 相同的多模态 `InputData` 格式，因此单个请求内可以混用文本、图片和音频内容。
+
+EmbeddingGemma 2 使用非对称的任务前缀，`EmbeddingTask` 已内置官方前缀：
+
+- `EmbeddingTask::Document` — `task: search result | text: `
+- `EmbeddingTask::Query` — `task: search query | text: `
+- `EmbeddingTask::Classification` — `task: classification | text: `
+- `EmbeddingTask::Clustering` — `task: clustering | text: `
+- `EmbeddingTask::SentenceSimilarity` — `task: sentence similarity | text: `
+
+建索引用 `Document`，查询用 `Query`。两侧使用同一个前缀会明显降低检索质量。
 
 ### 多模态 Session API
 
@@ -752,4 +796,7 @@ cargo run -p litert-lm-edge --example raw_conversation_json -- \
 
 cargo run -p litert-lm-edge --example engine_config -- \
   "$MODEL"
+
+cargo run -p litert-lm-edge --example embedding_generate -- \
+  "$EMBEDDING_MODEL"
 ```
