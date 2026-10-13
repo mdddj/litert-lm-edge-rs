@@ -590,6 +590,72 @@ fills in the documented ones:
 Use `Document` when indexing and `Query` when searching. Sending the same
 prefix on both sides degrades retrieval quality.
 
+#### Verifying multimodal embeddings
+
+Text output alone cannot show whether the vision and audio encoders run, so
+`embedding_multimodal` embeds each supplied medium and ranks text probes
+against it. A working pipeline ranks the probe that actually describes the
+medium first; a broken one returns them in arbitrary order.
+
+```bash
+cargo run --release -p litert-lm-edge --example embedding_multimodal -- \
+  "$EMBEDDING_MODEL" \
+  --image .litert-lm-build/LiteRT-LM-v0.18.0/support/preprocessor/testdata/apple.png \
+  --image .litert-lm-build/LiteRT-LM-v0.18.0/runtime/testdata/colored_rect_163_586_615_957.jpg \
+  --audio .litert-lm-build/LiteRT-LM-v0.18.0/runtime/testdata/have_a_wonderful_day.wav
+```
+
+`--image` and `--audio` may be repeated. `--probe TEXT` replaces the default
+probe set, which is chosen to match the fixtures upstream ships.
+
+A healthy CPU run on EmbeddingGemma 2 740M produces:
+
+```text
+image: .../apple.png  (768 dimensions)
+  0.8075  a photo of a red apple in a wooden bowl
+  0.6297  an empty quiet room
+
+image: .../colored_rect_163_586_615_957.jpg  (768 dimensions)
+  0.7931  a green rectangle on a white background
+  0.6318  an empty quiet room
+
+audio: .../have_a_wonderful_day.wav  (768 dimensions)
+  0.8392  a person speaking the words have a wonderful day
+  0.6065  an empty quiet room
+
+pairwise similarity between media:
+  [0] <-> [1]: 0.6233
+  [0] <-> [2]: 0.5993
+  [1] <-> [2]: 0.5871
+```
+
+Three properties separate a pass from a false positive:
+
+- The matching probe wins by a wide margin, not a rounding error. Expect
+  roughly 0.15–0.25 here; the scores are compressed because the media sit in
+  one joint space rather than in two independent ones.
+- The media are mutually exclusive. The worst probe for the apple image is the
+  green rectangle, and the worst probe for the rectangle is the apple.
+- The media land on distinct vectors. All three encoders are live, so no
+  off-diagonal pair approaches 1.0. Uniform similarity across media is the
+  signature of an encoder that returned a constant vector.
+
+Audio needs no external toolchain. The runtime resamples the file to the
+16 kHz the frontend expects, so a `.wav` at any rate is accepted: the same
+recording converted to 8 kHz, 16 kHz, 24 kHz, and 22.05 kHz all score within
+0.0024 of each other and land within 0.9974 similarity of one another. Mono
+16-bit PCM is what upstream ships, but stereo is downmixed and 32-bit float is
+also accepted.
+
+Images need no resizing either. The preprocessor fits them to the bundle's
+patch budget and reports the decision, so full-resolution photos work
+unmodified:
+
+```text
+stb_image_preprocessor.cc:72] Resize image from 1131x1077 to 576x528 which
+will result in 1188 patches to fit the max_num_patches: 1260 limit.
+```
+
 ### Multimodal Session API
 
 Use `generate_content` when a prompt contains text, images, or audio. File
@@ -955,4 +1021,7 @@ cargo run -p litert-lm-edge --example engine_config -- \
 
 cargo run -p litert-lm-edge --example embedding_generate -- \
   "$EMBEDDING_MODEL"
+
+cargo run -p litert-lm-edge --example embedding_multimodal -- \
+  "$EMBEDDING_MODEL" --image /path/to/image.png --audio /path/to/audio.wav
 ```

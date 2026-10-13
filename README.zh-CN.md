@@ -441,6 +441,56 @@ EmbeddingGemma 2 使用非对称的任务前缀，`EmbeddingTask` 已内置官�
 
 建索引用 `Document`，查询用 `Query`。两侧使用同一个前缀会明显降低检索质量。
 
+#### 验证多模态嵌入
+
+纯文本的输出无法证明视觉和音频编码器真的跑了，因此 `embedding_multimodal` 会把每种媒介各自嵌入一遍，再用文本 probe 对它排序。管线正常时，真正描述该媒介的 probe 会排在第一位；管线坏掉时顺序是随机的。
+
+```bash
+cargo run --release -p litert-lm-edge --example embedding_multimodal -- \
+  "$EMBEDDING_MODEL" \
+  --image .litert-lm-build/LiteRT-LM-v0.18.0/support/preprocessor/testdata/apple.png \
+  --image .litert-lm-build/LiteRT-LM-v0.18.0/runtime/testdata/colored_rect_163_586_615_957.jpg \
+  --audio .litert-lm-build/LiteRT-LM-v0.18.0/runtime/testdata/have_a_wonderful_day.wav
+```
+
+`--image` 和 `--audio` 都可以重复传入。`--probe TEXT` 用来替换默认 probe 集合，默认值是按上游自带夹具挑选的。
+
+CPU 上跑 EmbeddingGemma 2 740M，正常结果如下：
+
+```text
+image: .../apple.png  (768 dimensions)
+  0.8075  a photo of a red apple in a wooden bowl
+  0.6297  an empty quiet room
+
+image: .../colored_rect_163_586_615_957.jpg  (768 dimensions)
+  0.7931  a green rectangle on a white background
+  0.6318  an empty quiet room
+
+audio: .../have_a_wonderful_day.wav  (768 dimensions)
+  0.8392  a person speaking the words have a wonderful day
+  0.6065  an empty quiet room
+
+pairwise similarity between media:
+  [0] <-> [1]: 0.6233
+  [0] <-> [2]: 0.5993
+  [1] <-> [2]: 0.5871
+```
+
+有三条特征用来区分"真的通了"和"看起来通了"：
+
+- 正确 probe 以明显优势胜出，而不是零点几的差距。这里的预期量级是 0.15–0.25；分数整体被压缩，是因为各媒介处在同一个联合空间里，而不是各自独立的两个空间。
+- 各媒介互斥。苹果图片得分最低的 probe 正是绿色矩形，而绿色矩形得分最低的 probe 正是苹果。
+- 各媒介落在互不相同的向量上。三路编码器都活着，所以没有任何一对的相似度接近 1.0。媒介之间相似度普遍偏高且彼此接近，是编码器返回常量向量的典型特征。
+
+音频不需要额外工具链。运行时会自行重采样到前端期望的 16 kHz，所以任意采样率的 `.wav` 都能用：同一段录音转成 8 kHz、16 kHz、24 kHz、22.05 kHz 后，彼此分数差距不超过 0.0024，向量相似度不低于 0.9974。上游提供的是单声道 16-bit PCM，但立体声会被降混、32-bit float 也支持。
+
+图片同样不需要预缩放。预处理器会按模型包的 patch 预算自行适配，并打印出决策，所以全分辨率照片可以直接用：
+
+```text
+stb_image_preprocessor.cc:72] Resize image from 1131x1077 to 576x528 which
+will result in 1188 patches to fit the max_num_patches: 1260 limit.
+```
+
 ### 多模态 Session API
 
 当 prompt 包含文本、图片或音频时，使用 `generate_content`。文件输入会先读取成 owned bytes，再传给 native 调用。
@@ -799,4 +849,7 @@ cargo run -p litert-lm-edge --example engine_config -- \
 
 cargo run -p litert-lm-edge --example embedding_generate -- \
   "$EMBEDDING_MODEL"
+
+cargo run -p litert-lm-edge --example embedding_multimodal -- \
+  "$EMBEDDING_MODEL" --image /path/to/image.png --audio /path/to/audio.wav
 ```
