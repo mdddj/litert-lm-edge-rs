@@ -33,6 +33,8 @@ SDK 0.2.1 对应 LiteRT-LM v0.17.1，并包含工具调用参数保持整数类�
 
 SDK 0.2.5 对应 LiteRT-LM v0.18.0，新增 `EngineBuilder::single_threaded_execution` 和 `SessionConfig.enable_speculative_decoding`。v0.17.1 的 C 调用签名没有变化。手写的 `SessionConfig` 结构体字面量需要补上新字段，或者使用 `..SessionConfig::default()`。
 
+SDK 0.2.6 对应 LiteRT-LM v0.18.0，新增 `EmbeddingEngine`。macOS runtime 现在导出 embedding C API；随 0.2.5 发布的 runtime 没有导出，链接它会报 `litert_lm_embedding_*` 缺失。runtime 缓存会记录填充它的 release 版本，所以 0.2.6 的构建脚本会自动重新拉取，不需要手动清理缓存。
+
 CPU runtime 实现的是 `SamplerType::TopP`；需要确定性采样时可使用 `TopP` 配合 `top_k: 1`。显式使用 `TopK` 或 `Greedy` 时，上游 CPU runtime 当前会返回不支持该 sampler 的错误。
 
 ## 构建模式
@@ -113,12 +115,15 @@ scripts/prepare_litert_lm_linux_x86_64.sh
 
 每次升级按这个顺序检查：
 
-1. 对比新旧 tag 的 `c/engine.h` 和 `c/conversation.h`，重新生成 raw FFI，并确认所有打包 runtime 都导出了声明的符号。macOS export list 直接从这两个头文件生成。
+1. 对比新旧 tag 的 `c/engine.h`、`c/conversation.h` 和 `c/embedding_engine.h`，重新生成 raw FFI，并确认所有打包 runtime 都导出了声明的符号。macOS export list 直接从这些头文件生成 —— 漏掉的头文件会在链接期被剥离，而构建仍然成功，只会在下游以缺少符号的形式暴露出来。
 2. 先在 GitHub 上分别跑 Windows 和 Linux runtime workflow，成功后再把 artifact 复制进 `vendor/`。
 3. 在 macOS 或 Linux 上复制 Windows artifact 后，必要时规范化文本文件换行，再运行 `shasum -a 256 -c SHA256SUMS`；PowerShell 生成的文件可能带 CRLF。
 4. 检查重建后的库是否真的导出了预期 C API，尤其是本次新增的符号。
 5. 最后跑 `cargo fmt --all --check`、`cargo check --workspace --all-targets`、`git diff --check`，并校验每个 `vendor/<target>/SHA256SUMS`。
 6. 分别使用默认绑定和 `generate-bindings` 构建验证实际生成、流式调用；更新 UE ThirdParty 库前必须重新构建 UE FFI 桥接库。
+7. 用 `python3 scripts/build_runtime_assets.py` 刷新发布用的 runtime 资产，用 `gh release upload v<crate version> dist/runtime/*.tar.gz --clobber` 上传，并更新 `litert-lm-edge-sys/runtime-checksums.txt`。已发布的 crate 会下载这些资产，过期的资产等于悄悄发布了旧 runtime。
+
+runtime 有变化时，必须先发布资产、再把对应的版本号推进 `main`。`consumer-smoke` workflow 会按工作区版本号去同名 release 下载 runtime，tag 还没发布就会下载失败。正确顺序是：先推 tag，再建 release，最后推 `main`。
 
 ## 使用方式
 

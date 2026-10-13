@@ -57,6 +57,12 @@ SDK 0.2.5 targets LiteRT-LM v0.18.0. It adds
 unchanged. Existing `SessionConfig` struct literals need the new field, or
 `..SessionConfig::default()`.
 
+SDK 0.2.6 targets LiteRT-LM v0.18.0 and adds `EmbeddingEngine`. The macOS
+runtime now exports the embedding C API; the runtime published with 0.2.5 did
+not, so code linking against it fails on `litert_lm_embedding_*`. The runtime
+cache records the release that populated it, so the 0.2.6 build script refetches
+on its own and no manual cache cleanup is needed.
+
 The CPU runtime implements `SamplerType::TopP`; use `top_k: 1` with `TopP`
 for deterministic sampling. Explicit `TopK` and `Greedy` currently return an
 upstream unsupported-sampler error on CPU.
@@ -91,6 +97,11 @@ A local `vendor/<target>/` directory always takes precedence, so the
 `scripts/prepare_litert_lm_*` development flow stays network-free. Downloads go
 to the shared `target/litert-lm-runtime` cache; relocate it with
 `LITERT_LM_RUNTIME_CACHE_DIR`.
+
+The cache is keyed by release: it records the crate version that populated it
+and is refetched after a version bump, so an upgrade never keeps linking the
+previous release's native libraries. An offline build with a cache from a
+different release fails with that reason instead of silently reusing it.
 
 Every archive must match the SHA-256 pin in
 `litert-lm-edge-sys/runtime-checksums.txt` and the `SHA256SUMS` manifest inside
@@ -235,9 +246,12 @@ so upgrading does not overwrite a previously patched checkout.
 
 For each upgrade:
 
-1. Compare upstream `c/engine.h` and `c/conversation.h` against the previous
-   tag. Regenerate raw FFI bindings and verify that every declared symbol is
-   exported by all bundled runtimes. macOS exports are derived from these headers.
+1. Compare upstream `c/engine.h`, `c/conversation.h`, and
+   `c/embedding_engine.h` against the previous tag. Regenerate raw FFI bindings
+   and verify that every declared symbol is exported by all bundled runtimes.
+   macOS exports are derived from these headers, so a header that is missing
+   from the export list is stripped at link time while the build still
+   succeeds, surfacing only as a missing symbol downstream.
 2. Run the Windows and Linux runtime workflows from GitHub before copying their
    artifacts into `vendor/`.
 3. After copying Windows artifacts on macOS or Linux, normalize text files if
@@ -255,6 +269,12 @@ For each upgrade:
    `gh release upload v<crate version> dist/runtime/*.tar.gz --clobber`, and
    update `litert-lm-edge-sys/runtime-checksums.txt`. Published crates fetch
    these assets, so a stale asset silently ships an old runtime.
+
+When a runtime changes, publish the assets before pushing the matching version
+bump to `main`. The `consumer-smoke` workflow resolves the runtime from the
+release named after the workspace version, so it fails on the download if the
+tag is not published yet. Push the tag first, then create the release, then
+push `main`.
 
 ## Usage
 
